@@ -1,16 +1,16 @@
 import axios from "axios";
+import { ENV } from "../config/env";
 
-const API = "http://127.0.0.1:8000/auth";
 
 export const createAccount = (data: {
   name: string;
   email: string;
   password: string;
   password_confirmation: string;
-}) => axios.post(`${API}/create-account/`, data);
+}) => axios.post(`${ENV.API_URL}/auth/create-account/`, data);
 
 export const confirmAccount = (token: string) =>
-  axios.post(`${API}/confirm-account/`, { token });
+  axios.post(`${ENV.API_URL}/auth/confirm-account/`, { token });
 
 export const login = (data: { email: string; password: string }) =>
-  axios.post(`${API}/login/`, data);
+  axios.post(`${ENV.API_URL}/auth/login/`, data);
