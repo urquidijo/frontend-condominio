@@ -1,16 +1,15 @@
-import axios from "axios";
-import { ENV } from "../config/env";
+import api from "./axiosConfig";
 
+export const login = async (username: string, password: string) => {
+  const response = await api.post("login/", { username, password });
 
-export const createAccount = (data: {
-  name: string;
-  email: string;
-  password: string;
-  password_confirmation: string;
-}) => axios.post(`${ENV.API_URL}/auth/create-account/`, data);
+  if (response.data.access) {
+    localStorage.setItem("token", response.data.access);
+    localStorage.setItem(
+      "permissions",
+      JSON.stringify(response.data.permissions || [])
+    );
+  }
 
-export const confirmAccount = (token: string) =>
-  axios.post(`${ENV.API_URL}/auth/confirm-account/`, { token });
-
-export const login = (data: { email: string; password: string }) =>
-  axios.post(`${ENV.API_URL}/auth/login/`, data);
+  return response.data;
+};
