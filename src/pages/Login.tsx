@@ -106,7 +106,7 @@ const Login = () => {
                   className={`block w-full pl-10 pr-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
                     errors.email ? "border-red-300" : "border-gray-300"
                   }`}
-                  placeholder="tu@ejemplo.com"
+                  placeholder="Correo"
                 />
               </div>
               {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}

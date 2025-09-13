@@ -1,4 +1,4 @@
-import  { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import Modal from "react-modal";
 import {
@@ -9,28 +9,41 @@ import {
   type CommonArea,
 } from "../api/commons";
 
-// Configurar Modal para accesibilidad
+// ===== Modal accesibilidad
 Modal.setAppElement("#root");
 
-// Utilidades mínimas para horas
+// ===== Helpers de tiempo
 const toHHMM = (t?: string) => {
   if (!t) return "";
   const [h = "00", m = "00"] = t.split(":");
   return `${h.padStart(2, "0")}:${m.padStart(2, "0")}`;
 };
-
 const toHHMMSS = (t?: string) => {
   if (!t) return "";
   const [h = "00", m = "00", s = "00"] = t.split(":");
   return `${h.padStart(2, "0")}:${m.padStart(2, "0")}:${s.padStart(2, "0")}`;
 };
 
-const ESTADOS: CommonArea["estado"][] = ["DISPONIBLE", "MANTENIMIENTO", "CERRADO"];
+// ===== Helpers de rol (lee localStorage.role)
+const readRole = (): string => {
+  try {
+    const raw = localStorage.getItem("role") ?? "";
+    return raw.replace(/^"|"$/g, ""); // por si viene con comillas
+  } catch {
+    return "";
+  }
+};
+const isAdminRole = (role: string) => {
+  const r = (role || "").toLowerCase();
+  return r === "administrador" || r === "administrator" || r === "admin";
+};
 
+// ===== Constantes
+const ESTADOS: CommonArea["estado"][] = ["DISPONIBLE", "MANTENIMIENTO", "CERRADO"];
 const estadoTone = (e: CommonArea["estado"]) =>
-  e === "DISPONIBLE" 
+  e === "DISPONIBLE"
     ? "bg-green-100 text-green-800"
-    : e === "MANTENIMIENTO" 
+    : e === "MANTENIMIENTO"
     ? "bg-yellow-100 text-yellow-800"
     : "bg-red-100 text-red-800";
 
@@ -40,11 +53,16 @@ type AreaFormData = {
   capacidad: number;
   ubicacion: string;
   estado: CommonArea["estado"];
-  horario_apertura: string;
-  horario_cierre: string;
+  horario_apertura: string; // HH:MM
+  horario_cierre: string;   // HH:MM
 };
 
-const Areas = () => {
+export default function Areas() {
+  // ===== rol
+  const role = useMemo(() => readRole(), []);
+  const isAdmin = isAdminRole(role);
+
+  // ===== estado de la vista
   const [areas, setAreas] = useState<CommonArea[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [deleteModal, setDeleteModal] = useState<CommonArea | null>(null);
@@ -54,13 +72,13 @@ const Areas = () => {
   const [loading, setLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  // ===== formulario
   const {
     register,
     handleSubmit,
     reset,
-    setValue,
     watch,
-    formState: { errors, isSubmitting }
+    formState: { errors, isSubmitting },
   } = useForm<AreaFormData>({
     defaultValues: {
       nombre: "",
@@ -70,12 +88,12 @@ const Areas = () => {
       estado: "DISPONIBLE",
       horario_apertura: "08:00",
       horario_cierre: "18:00",
-    }
+    },
   });
-
   const watchedApertura = watch("horario_apertura");
   const watchedCierre = watch("horario_cierre");
 
+  // ===== cargar áreas
   const fetchAreas = async () => {
     try {
       setErrorTop(null);
@@ -88,12 +106,11 @@ const Areas = () => {
       setLoading(false);
     }
   };
+  useEffect(() => { fetchAreas(); }, []);
 
-  useEffect(() => {
-    fetchAreas();
-  }, []);
-
+  // ===== acciones (con guardas de admin)
   const openCreate = () => {
+    if (!isAdmin) { alert("No autorizado. Solo administradores pueden crear áreas."); return; }
     setIsEditing(false);
     setEditingId(null);
     reset({
@@ -109,6 +126,7 @@ const Areas = () => {
   };
 
   const openEdit = (area: CommonArea) => {
+    if (!isAdmin) { alert("No autorizado. Solo administradores pueden modificar áreas."); return; }
     setIsEditing(true);
     setEditingId(area.id);
     reset({
@@ -123,29 +141,15 @@ const Areas = () => {
     setShowModal(true);
   };
 
-  const handleDelete = async () => {
-    if (!deleteModal) return;
-
-    setDeleteLoading(true);
-    try {
-      await deleteArea(deleteModal.id);
-      await fetchAreas();
-      setDeleteModal(null);
-    } catch (e: any) {
-      alert(e?.response?.data?.detail || "No se pudo eliminar el área.");
-    } finally {
-      setDeleteLoading(false);
-    }
-  };
-
   const onSubmit = async (data: AreaFormData) => {
-    // Validación de horarios
+    if (!isAdmin) { alert("No autorizado."); return; }
+
     if (data.horario_apertura >= data.horario_cierre) {
       alert("El horario de apertura debe ser menor al de cierre.");
       return;
     }
 
-    const payload: any = {
+    const payload: Partial<CommonArea> = {
       ...data,
       horario_apertura: toHHMMSS(data.horario_apertura),
       horario_cierre: toHHMMSS(data.horario_cierre),
@@ -155,7 +159,6 @@ const Areas = () => {
       if (isEditing && editingId) {
         await updateArea(editingId, payload);
       } else {
-        delete payload.id;
         await createArea(payload as Omit<CommonArea, "id">);
       }
       setShowModal(false);
@@ -169,23 +172,46 @@ const Areas = () => {
     }
   };
 
+  const askDelete = (area: CommonArea) => {
+    if (!isAdmin) { alert("No autorizado. Solo administradores pueden eliminar áreas."); return; }
+    setDeleteModal(area);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteModal) return;
+    if (!isAdmin) { alert("No autorizado."); return; }
+
+    setDeleteLoading(true);
+    try {
+      await deleteArea(deleteModal.id);
+      await fetchAreas();
+      setDeleteModal(null);
+    } catch (e: any) {
+      alert(e?.response?.data?.detail || "No se pudo eliminar el área.");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen w-full bg-gray-50">
       <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">
-            Áreas Comunes
-          </h1>
-          <button
-            onClick={openCreate}
-            className="self-start sm:self-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            <span>Nueva Área</span>
-          </button>
+          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Áreas Comunes</h1>
+
+          {/* SOLO ADMIN: botón Nueva Área */}
+          {isAdmin && (
+            <button
+              onClick={openCreate}
+              className="self-start sm:self-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              <span>Nueva Área</span>
+            </button>
+          )}
         </div>
 
         {/* Error de carga */}
@@ -258,26 +284,31 @@ const Areas = () => {
                   </div>
                 </div>
 
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => openEdit(area)}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
-                  >
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => setDeleteModal(area)}
-                    className="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
-                  >
-                    Eliminar
-                  </button>
-                </div>
+                {/* SOLO ADMIN: acciones */}
+                {isAdmin ? (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => openEdit(area)}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => askDelete(area)}
+                      className="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-xs text-gray-400"></div>
+                )}
               </div>
             ))}
           </div>
         )}
 
-        {/* Modal crear/editar área */}
+        {/* ===== Modal crear/editar área (solo abre si isAdmin) ===== */}
         <Modal
           isOpen={showModal}
           onRequestClose={() => !isSubmitting && setShowModal(false)}
@@ -304,23 +335,17 @@ const Areas = () => {
             {/* Nombre y Ubicación */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
                 <input
                   {...register("nombre", { required: "El nombre es obligatorio" })}
                   className="w-full border border-gray-300 text-gray-900 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Ej: Salón de eventos"
                 />
-                {errors.nombre && (
-                  <p className="text-red-500 text-sm mt-1">{errors.nombre.message}</p>
-                )}
+                {errors.nombre && <p className="text-red-500 text-sm mt-1">{errors.nombre.message}</p>}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Ubicación
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ubicación</label>
                 <input
                   {...register("ubicacion")}
                   className="w-full border border-gray-300 text-gray-900 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -331,9 +356,7 @@ const Areas = () => {
 
             {/* Descripción */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Descripción
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
               <textarea
                 {...register("descripcion")}
                 rows={3}
@@ -345,36 +368,29 @@ const Areas = () => {
             {/* Capacidad y Estado */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Capacidad *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Capacidad *</label>
                 <input
-                  {...register("capacidad", { 
+                  {...register("capacidad", {
                     required: "La capacidad es obligatoria",
-                    min: { value: 1, message: "La capacidad debe ser mayor a 0" }
+                    min: { value: 1, message: "La capacidad debe ser mayor a 0" },
+                    valueAsNumber: true,
                   })}
                   type="number"
                   min={1}
                   className="w-full border border-gray-300 text-gray-900 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="0"
                 />
-                {errors.capacidad && (
-                  <p className="text-red-500 text-sm mt-1">{errors.capacidad.message}</p>
-                )}
+                {errors.capacidad && <p className="text-red-500 text-sm mt-1">{errors.capacidad.message}</p>}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Estado
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
                 <select
                   {...register("estado")}
                   className="w-full border border-gray-300 text-gray-900 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   {ESTADOS.map((estado) => (
-                    <option key={estado} value={estado}>
-                      {estado}
-                    </option>
+                    <option key={estado} value={estado}>{estado}</option>
                   ))}
                 </select>
               </div>
@@ -383,31 +399,23 @@ const Areas = () => {
             {/* Horarios */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Horario de apertura *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Horario de apertura *</label>
                 <input
                   {...register("horario_apertura", { required: "El horario de apertura es obligatorio" })}
                   type="time"
                   className="w-full border border-gray-300 text-gray-900 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
-                {errors.horario_apertura && (
-                  <p className="text-red-500 text-sm mt-1">{errors.horario_apertura.message}</p>
-                )}
+                {errors.horario_apertura && <p className="text-red-500 text-sm mt-1">{errors.horario_apertura.message}</p>}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Horario de cierre *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Horario de cierre *</label>
                 <input
                   {...register("horario_cierre", { required: "El horario de cierre es obligatorio" })}
                   type="time"
                   className="w-full border border-gray-300 text-gray-900 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
-                {errors.horario_cierre && (
-                  <p className="text-red-500 text-sm mt-1">{errors.horario_cierre.message}</p>
-                )}
+                {errors.horario_cierre && <p className="text-red-500 text-sm mt-1">{errors.horario_cierre.message}</p>}
               </div>
             </div>
 
@@ -439,7 +447,7 @@ const Areas = () => {
           </form>
         </Modal>
 
-        {/* Modal eliminar área */}
+        {/* ===== Modal eliminar área (solo admin) ===== */}
         <Modal
           isOpen={!!deleteModal}
           onRequestClose={() => !deleteLoading && setDeleteModal(null)}
@@ -455,8 +463,7 @@ const Areas = () => {
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">Eliminar Área</h3>
             <p className="text-sm text-gray-600 mb-6">
-              ¿Estás seguro que deseas eliminar el área{" "}
-              <strong>"{deleteModal?.nombre}"</strong>? Esta acción no se puede deshacer.
+              ¿Estás seguro que deseas eliminar el área <strong>"{deleteModal?.nombre}"</strong>? Esta acción no se puede deshacer.
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <button
@@ -479,6 +486,4 @@ const Areas = () => {
       </div>
     </div>
   );
-};
-
-export default Areas;
+}
