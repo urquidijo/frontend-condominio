@@ -1,16 +1,15 @@
 import api from "./axiosConfig";
-import {type  Role } from "./roles";
+import { type Role } from "./roles";
+import { type Permission } from "./permissions";
 
 export interface User {
   id: number;
-  username: string;
   email: string;
   first_name: string;
   last_name: string;
-  role: Role | null;          // 👈 ahora es objeto Role
-  permissions?: string[];
+  role: Role | null;
+  extra_permissions?: Permission[];
 }
-
 
 interface PaginatedResponse<T> {
   count: number;
@@ -27,7 +26,8 @@ export const getUsers = async (): Promise<User[]> => {
 };
 
 export interface CreateUserPayload {
-  username: string;
+  first_name: string;
+  last_name: string;
   email: string;
   password: string;
   role_id: number | null;
@@ -38,7 +38,6 @@ export const createUser = async (payload: CreateUserPayload): Promise<User> => {
   return data;
 };
 
-// PUT usuario
 export const updateUser = async (
   id: number,
   payload: Partial<Omit<User, "id">>
@@ -47,18 +46,7 @@ export const updateUser = async (
   return data;
 };
 
-// DELETE usuario
 export const deleteUser = async (id: number): Promise<void> => {
   await api.delete(`users/${id}/`);
 };
 
-
-// 🔹 Agregar permiso extra a un usuario
-export const addPermission = async (userId: number, permissionId: number) => {
-  await api.post(`users/${userId}/add_permission/`, { permission_id: permissionId });
-};
-
-// 🔹 Quitar permiso extra a un usuario
-export const removePermission = async (userId: number, permissionId: number) => {
-  await api.post(`users/${userId}/remove_permission/`, { permission_id: permissionId });
-};
