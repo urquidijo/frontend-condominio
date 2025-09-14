@@ -56,7 +56,7 @@ const Login = () => {
 
     try {
       // 🔹 Usamos la función login de auth.ts
-      const data = await login(formData.email, formData.password);
+      await login(formData.email, formData.password);
 
       // Redirigir al dashboard
       navigate("/dashboard", { replace: true });
