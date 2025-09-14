@@ -8,7 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import Areas from "./pages/Areas";
 
 // Componentes
-import Sidebar from "./components/Sidebar";
+import Layout from "./components/Layout"; // << usa el Layout con sidebar responsive
 import { hasPermission } from "./hooks/usePermissions";
 
 function ProtectedRoute({
@@ -24,86 +24,65 @@ function ProtectedRoute({
   if (requiredPermission && !hasPermission(requiredPermission)) {
     return <Navigate to="/dashboard" replace />;
   }
-
   return <>{children}</>;
 }
 
-function App() {
+export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Navigate to="/login" />} />
         <Route path="/login" element={<Login />} />
 
-        {/* dashboard */}
+        {/* Rutas protegidas envueltas en Layout (sidebar + topbar responsive) */}
         <Route
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <div className="flex">
-                <Sidebar />
+              <Layout>
                 <Dashboard />
-              </div>
+              </Layout>
             </ProtectedRoute>
           }
         />
 
-        {/* users */}
         <Route
           path="/users"
           element={
             <ProtectedRoute requiredPermission="view_users">
-              <div className="flex">
-                <Sidebar />
+              <Layout>
                 <Users />
-              </div>
+              </Layout>
             </ProtectedRoute>
           }
         />
 
-        {/* notices */}
         <Route
           path="/notices"
           element={
             <ProtectedRoute>
-              <div className="flex">
-                <Sidebar />
+              <Layout>
                 <Notices />
-              </div>
+              </Layout>
             </ProtectedRoute>
           }
         />
 
-        {/* áreas comunes */}
         <Route
           path="/areas"
           element={
-       
-              <div className="flex">
-                <Sidebar />
-                <Areas />
-              </div>
-     
-          }
-        />
-
-        {/* reservas */}
-        <Route
-          path="/reservations"
-          element={
             <ProtectedRoute>
-              <div className="flex">
-                <Sidebar />
-            
-              </div>
+              <Layout>
+                <Areas />
+              </Layout>
             </ProtectedRoute>
           }
         />
+
+    
 
         <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
     </BrowserRouter>
   );
 }
-
-export default App;
