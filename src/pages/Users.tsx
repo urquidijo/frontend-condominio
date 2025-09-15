@@ -1,5 +1,4 @@
-import  { useEffect, useState } from "react";
-
+import { useEffect, useState } from "react";
 import {
   getUsers,
   createUser,
@@ -92,7 +91,6 @@ const Users = () => {
 
   const handleDeleteUser = async () => {
     if (!deleteModal) return;
-
     setDeleteLoading(true);
     try {
       await deleteUser(deleteModal.id);
@@ -126,7 +124,7 @@ const Users = () => {
 
   return (
     <div className="min-h-screen w-full bg-gray-50">
-      {/* CONTENEDOR FULL-WIDTH: sin max-w ni mx-auto */}
+      {/* CONTENEDOR FULL-WIDTH */}
       <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
@@ -137,7 +135,7 @@ const Users = () => {
             className="self-start sm:self-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center gap-2"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v12M6 12h12" />
             </svg>
             <span>Crear Usuario</span>
           </button>
@@ -329,26 +327,29 @@ const Users = () => {
           </div>
         </Modal>
 
-        {/* Tabla usuarios */}
+        {/* Tabla usuarios - SIN columna ID */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           <div className="w-full overflow-x-auto">
-            {/* w-full para ocupar todo el ancho del contenedor; min-w solo en md+ */}
-            <table className="w-full md:min-w-[720px]">
+            {/* reducimos min-w porque quitamos una columna */}
+            <table className="w-full md:min-w-[640px]">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="p-4 text-left text-sm font-medium text-gray-700 hidden sm:table-cell">ID</th>
+                  {/* ID eliminado */}
                   <th className="p-4 text-left text-sm font-medium text-gray-700">Usuario</th>
                   <th className="p-4 text-left text-sm font-medium text-gray-700">Email</th>
                   <th className="p-4 text-left text-sm font-medium text-gray-700">Rol</th>
-                  <th className="p-4 text-left text-sm font-medium text-gray-700 hidden md:table-cell">Permisos Extra</th>
+                  <th className="p-4 text-left text-sm font-medium text-gray-700 hidden md:table-cell">
+                    Permisos Extra
+                  </th>
                   <th className="p-4 text-left text-sm font-medium text-gray-700">Acciones</th>
                 </tr>
               </thead>
+
               <tbody className="divide-y divide-gray-200">
                 {(users ?? []).length > 0 ? (
                   users.map((u) => (
                     <tr key={u.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="p-4 text-gray-900 font-medium hidden sm:table-cell">{u.id}</td>
+                      {/* ID eliminado */}
                       <td className="p-4">
                         <div className="flex items-center">
                           <div className="text-gray-900 font-medium">
@@ -402,10 +403,21 @@ const Users = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="text-center p-10 sm:p-12">
+                    {/* Antes 6 columnas, ahora 5 */}
+                    <td colSpan={5} className="text-center p-10 sm:p-12">
                       <div className="text-gray-400">
-                        <svg className="w-12 h-12 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                        <svg
+                          className="w-12 h-12 mx-auto mb-4 opacity-50"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
+                          />
                         </svg>
                         <p className="text-base sm:text-lg">No hay usuarios registrados</p>
                         <p className="text-sm mt-1">Crea tu primer usuario para comenzar</p>
