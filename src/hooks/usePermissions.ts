@@ -1,5 +1,5 @@
 // src/hooks/usePermissions.ts
-import { useEffect, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 
 /** fuente única de verdad: localStorage -> ["view_users","view_notices", ...] */
 function read(): string[] {

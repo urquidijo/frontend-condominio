@@ -283,7 +283,6 @@ const ReportesMantenimiento: React.FC = () => {
     }
   };
 
-  const personasSegunAsignar = staff.filter((s) => s.type === asignarA);
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">

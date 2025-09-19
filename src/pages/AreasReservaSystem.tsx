@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import {
-  CreditCard,
   Check,
 } from "lucide-react";
 import { useStripe } from "@stripe/react-stripe-js";
@@ -9,7 +8,6 @@ const AreasReservaSystem: React.FC = () => {
   const [selectedArea, setSelectedArea] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
-  const [guests, setGuests] = useState(1);
   const [userInfo, setUserInfo] = useState({
     name: "",
     apartment: "",
@@ -18,7 +16,7 @@ const AreasReservaSystem: React.FC = () => {
   });
   const [step, setStep] = useState(1);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
-  const [reservationComplete, setReservationComplete] = useState(false);
+  const [reservationComplete] = useState(false);
 
   const stripe = useStripe();
 
