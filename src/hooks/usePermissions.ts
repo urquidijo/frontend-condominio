@@ -1,20 +1,34 @@
 // src/hooks/usePermissions.ts
-export const getPermissions = (): string[] => {
+import { useEffect, useSyncExternalStore } from "react";
+
+/** fuente única de verdad: localStorage -> ["view_users","view_notices", ...] */
+function read(): string[] {
   try {
-    return JSON.parse(localStorage.getItem("permissions") || "[]");
+    const raw = localStorage.getItem("permissions");
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
   } catch {
     return [];
   }
-};
+}
 
-export function hasPermission(permission: string): boolean {
-  try {
-    const stored = localStorage.getItem("extra_permissions");
-    if (!stored) return false;
+// Para que los componentes se enteren cuando cambien los permisos.
+function subscribe(cb: () => void) {
+  const handler = () => cb();
+  window.addEventListener("storage", handler);
+  window.addEventListener("permissions-changed", handler as any);
+  return () => {
+    window.removeEventListener("storage", handler);
+    window.removeEventListener("permissions-changed", handler as any);
+  };
+}
 
-    const permissions: string[] = JSON.parse(stored);
-    return permissions.includes(permission);
-  } catch {
-    return false;
-  }
+export function usePermissions() {
+  const perms = useSyncExternalStore(subscribe, read, () => []);
+  return perms;
+}
+
+export function hasPermission(code: string): boolean {
+  return read().includes(code);
 }

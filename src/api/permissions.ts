@@ -4,19 +4,14 @@ export interface Permission {
   id: number;
   name: string;
   code: string;
+  description?: string;
 }
 
+type Paged<T> = T[] | { results?: T[] };
+const unwrap = <T>(data: Paged<T>): T[] =>
+  Array.isArray(data) ? data : (data?.results ?? []);
+
 export const getPermissions = async (): Promise<Permission[]> => {
-  const { data } = await api.get<Permission[]>("permissions/");
-  return data;
-};
-
-// 🔹 Agregar permiso extra a un usuario
-export const addPermission = async (userId: number, permissionId: number) => {
-  await api.post(`users/${userId}/add_permission/`, { permission_id: permissionId });
-};
-
-// 🔹 Quitar permiso extra de un usuario
-export const removePermission = async (userId: number, permissionId: number) => {
-  await api.post(`users/${userId}/remove_permission/`, { permission_id: permissionId });
+  const { data } = await api.get("permissions/");   // ← sin users/
+  return unwrap<Permission>(data);
 };

@@ -3,26 +3,36 @@ import {
   getUsers,
   createUser,
   deleteUser,
+  assignRole,
+  // 👇 Asegúrate de exportar esto desde ../api/users (ver ejemplo más abajo)
+  updateUser,
   type User,
   type CreateUserPayload,
 } from "../api/users";
-import {
-  getPermissions,
-  addPermission,
-  removePermission,
-  type Permission,
-} from "../api/permissions";
 import { getRoles, type Role } from "../api/roles";
 import Modal from "react-modal";
 
 Modal.setAppElement("#root");
 
+const roleBadge = (name?: string) => {
+  const n = (name || "").toLowerCase();
+  if (n.includes("admin")) return "bg-purple-100 text-purple-800";
+  if (n.includes("interno")) return "bg-blue-100 text-blue-800";
+  if (n.includes("externo")) return "bg-amber-100 text-amber-800";
+  if (n.includes("inquil")) return "bg-green-100 text-green-800";
+  if (n.includes("coprop")) return "bg-cyan-100 text-cyan-800";
+  return "bg-gray-100 text-gray-800";
+};
+
+type Mode = "create" | "edit";
+
 const Users = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
-  const [permissions, setPermissions] = useState<Permission[]>([]);
   const [open, setOpen] = useState(false);
-  const [permModal, setPermModal] = useState<User | null>(null);
+  const [mode, setMode] = useState<Mode>("create");
+  const [activeUser, setActiveUser] = useState<User | null>(null);
+
   const [deleteModal, setDeleteModal] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -38,7 +48,6 @@ const Users = () => {
   useEffect(() => {
     fetchUsers();
     fetchRoles();
-    fetchPermissions();
   }, []);
 
   const fetchUsers = async () => {
@@ -59,13 +68,36 @@ const Users = () => {
     }
   };
 
-  const fetchPermissions = async () => {
-    try {
-      const data = await getPermissions();
-      setPermissions(data ?? []);
-    } catch (err) {
-      console.error("Error cargando permisos:", err);
-    }
+  const openCreateModal = () => {
+    setMode("create");
+    setActiveUser(null);
+    setForm({
+      first_name: "",
+      last_name: "",
+      email: "",
+      password: "",
+      role_id: null,
+    });
+    setOpen(true);
+  };
+
+  const openEditModal = (u: User) => {
+    setMode("edit");
+    setActiveUser(u);
+    setForm({
+      first_name: u.first_name ?? "",
+      last_name: u.last_name ?? "",
+      email: u.email ?? "",
+      // 👇 en edición no usamos password
+      password: "",
+      role_id: u.role?.id ?? null,
+    });
+    setOpen(true);
+  };
+
+  const closeModal = () => {
+    if (loading) return;
+    setOpen(false);
   };
 
   const handleCreateUser = async () => {
@@ -73,17 +105,35 @@ const Users = () => {
     try {
       await createUser(form);
       await fetchUsers();
-      setForm({
-        first_name: "",
-        last_name: "",
-        email: "",
-        password: "",
-        role_id: null,
-      });
-      setOpen(false);
+      closeModal();
     } catch (err) {
       console.error("Error creando usuario:", err);
       alert("No se pudo crear el usuario.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateUser = async () => {
+    if (!activeUser) return;
+    setLoading(true);
+    try {
+      // 1) Actualizamos datos básicos
+      await updateUser(activeUser.id, {
+        first_name: form.first_name,
+        last_name: form.last_name,
+        email: form.email,
+        // contraseña NO se envía en edición
+      });
+
+      // 2) Si cambió el rol, lo asignamos (si tu backend lo permite también en updateUser, puedes omitir esto)
+      await assignRole(activeUser.id, form.role_id);
+
+      await fetchUsers();
+      closeModal();
+    } catch (err) {
+      console.error("Error actualizando usuario:", err);
+      alert("No se pudo actualizar el usuario.");
     } finally {
       setLoading(false);
     }
@@ -104,34 +154,15 @@ const Users = () => {
     }
   };
 
-  const togglePermission = async (
-    user: User,
-    permId: number,
-    hasPerm: boolean
-  ) => {
-    try {
-      if (hasPerm) {
-        await removePermission(user.id, permId);
-      } else {
-        await addPermission(user.id, permId);
-      }
-      await fetchUsers();
-    } catch (err) {
-      console.error("Error actualizando permisos:", err);
-      alert("No se pudo actualizar permisos.");
-    }
-  };
-
   return (
     <div className="min-h-screen w-full bg-gray-50">
-      {/* CONTENEDOR FULL-WIDTH */}
       <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Usuarios</h1>
 
           <button
-            onClick={() => setOpen(true)}
+            onClick={openCreateModal}
             className="self-start sm:self-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center gap-2"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -141,18 +172,20 @@ const Users = () => {
           </button>
         </div>
 
-        {/* Modal crear usuario */}
+        {/* Modal crear/editar usuario */}
         <Modal
           isOpen={open}
-          onRequestClose={() => !loading && setOpen(false)}
-          contentLabel="Crear Usuario"
+          onRequestClose={closeModal}
+          contentLabel={mode === "create" ? "Crear Usuario" : "Editar Usuario"}
           className="relative z-50 bg-white w-full max-w-md sm:max-w-lg md:max-w-xl p-4 sm:p-6 rounded-lg shadow-lg border border-gray-200 outline-none"
           overlayClassName="fixed inset-0 z-40 flex justify-center items-start sm:items-center p-3 sm:p-6 bg-white/45 backdrop-blur-md"
         >
           <div className="flex items-center justify-between mb-4 sm:mb-6">
-            <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Nuevo Usuario</h2>
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
+              {mode === "create" ? "Nuevo Usuario" : "Editar Usuario"}
+            </h2>
             <button
-              onClick={() => setOpen(false)}
+              onClick={closeModal}
               disabled={loading}
               className="text-gray-400 hover:text-gray-600 transition-colors"
             >
@@ -186,13 +219,16 @@ const Users = () => {
               className="w-full border border-gray-300 text-gray-900 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
 
-            <input
-              placeholder="Contraseña"
-              type="password"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className="w-full border border-gray-300 text-gray-900 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
+            {/* 👇 Solo en modo CREATE mostramos contraseña */}
+            {mode === "create" && (
+              <input
+                placeholder="Contraseña"
+                type="password"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                className="w-full border border-gray-300 text-gray-900 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            )}
 
             <select
               value={form.role_id ?? ""}
@@ -214,14 +250,14 @@ const Users = () => {
 
             <div className="flex flex-col sm:flex-row gap-3 mt-2 sm:mt-6">
               <button
-                onClick={handleCreateUser}
+                onClick={mode === "create" ? handleCreateUser : handleUpdateUser}
                 disabled={loading}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-medium transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? "Guardando..." : "Guardar"}
               </button>
               <button
-                onClick={() => setOpen(false)}
+                onClick={closeModal}
                 disabled={loading}
                 className="flex-1 px-4 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium transition-colors disabled:opacity-50"
               >
@@ -269,78 +305,15 @@ const Users = () => {
           </div>
         </Modal>
 
-        {/* Modal permisos */}
-        <Modal
-          isOpen={!!permModal}
-          onRequestClose={() => setPermModal(null)}
-          contentLabel="Permisos"
-          className="relative z-50 bg-white w-full max-w-xl sm:max-w-2xl p-4 sm:p-6 rounded-lg shadow-lg border border-gray-200 outline-none"
-          overlayClassName="fixed inset-0 z-40 flex justify-center items-start sm:items-center p-3 sm:p-6 bg-white/45 backdrop-blur-md"
-        >
-          <div className="flex items-center justify-between mb-4 sm:mb-6">
-            <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
-              Permisos para {permModal?.email}
-            </h2>
-            <button
-              onClick={() => setPermModal(null)}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          <div className="space-y-3 max-h-[70vh] overflow-y-auto">
-            {permissions.map((p) => {
-              const hasPerm =
-                permModal?.extra_permissions?.some((ep) => ep.id === p.id) ?? false;
-              return (
-                <label
-                  key={p.id}
-                  className="flex items-center p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={hasPerm}
-                    onChange={() =>
-                      permModal && togglePermission(permModal, p.id, hasPerm)
-                    }
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <div className="ml-3">
-                    <div className="text-gray-900 font-medium">{p.name}</div>
-                    <div className="text-sm text-gray-500">{p.code}</div>
-                  </div>
-                </label>
-              );
-            })}
-          </div>
-
-          <div className="mt-6">
-            <button
-              onClick={() => setPermModal(null)}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-medium transition-colors"
-            >
-              Cerrar
-            </button>
-          </div>
-        </Modal>
-
-        {/* Tabla usuarios - SIN columna ID */}
+        {/* Tabla usuarios */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           <div className="w-full overflow-x-auto">
-            {/* reducimos min-w porque quitamos una columna */}
             <table className="w-full md:min-w-[640px]">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  {/* ID eliminado */}
                   <th className="p-4 text-left text-sm font-medium text-gray-700">Usuario</th>
                   <th className="p-4 text-left text-sm font-medium text-gray-700">Email</th>
                   <th className="p-4 text-left text-sm font-medium text-gray-700">Rol</th>
-                  <th className="p-4 text-left text-sm font-medium text-gray-700 hidden md:table-cell">
-                    Permisos Extra
-                  </th>
                   <th className="p-4 text-left text-sm font-medium text-gray-700">Acciones</th>
                 </tr>
               </thead>
@@ -349,7 +322,6 @@ const Users = () => {
                 {(users ?? []).length > 0 ? (
                   users.map((u) => (
                     <tr key={u.id} className="hover:bg-gray-50 transition-colors">
-                      {/* ID eliminado */}
                       <td className="p-4">
                         <div className="flex items-center">
                           <div className="text-gray-900 font-medium">
@@ -357,39 +329,22 @@ const Users = () => {
                           </div>
                         </div>
                       </td>
+
                       <td className="p-4 text-gray-600">{u.email}</td>
+
                       <td className="p-4">
-                        {u.role ? (
-                          <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs sm:text-sm font-medium">
-                            {u.role.name}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">Sin rol</span>
-                        )}
+                        <span className={`px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${roleBadge(u.role?.name ?? "")}`}>
+                          {u.role?.name ?? "Sin rol"}
+                        </span>
                       </td>
-                      <td className="p-4 hidden md:table-cell">
-                        <div className="flex flex-wrap gap-1">
-                          {(u.extra_permissions ?? []).length > 0 ? (
-                            (u.extra_permissions ?? []).map((ep) => (
-                              <span
-                                key={ep.id}
-                                className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-[11px] sm:text-xs font-medium"
-                              >
-                                {ep.code}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-gray-400 text-sm">Ninguno</span>
-                          )}
-                        </div>
-                      </td>
+
                       <td className="p-4">
                         <div className="flex flex-wrap gap-2">
                           <button
-                            onClick={() => setPermModal(u)}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors"
+                            onClick={() => openEditModal(u)}
+                            className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors"
                           >
-                            Editar Permisos
+                            Editar
                           </button>
                           <button
                             onClick={() => setDeleteModal(u)}
@@ -403,8 +358,7 @@ const Users = () => {
                   ))
                 ) : (
                   <tr>
-                    {/* Antes 6 columnas, ahora 5 */}
-                    <td colSpan={5} className="text-center p-10 sm:p-12">
+                    <td colSpan={4} className="text-center p-10 sm:p-12">
                       <div className="text-gray-400">
                         <svg
                           className="w-12 h-12 mx-auto mb-4 opacity-50"

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Home,
   Users,
@@ -12,6 +12,7 @@ import {
   FileText,
   ShieldCheck,
   X,
+  Wrench,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { hasPermission } from "../hooks/usePermissions";
@@ -20,7 +21,7 @@ type SubItem = {
   path: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
-  permission?: string | null;
+  permission?: string | null; // code del permiso o null si siempre visible
 };
 
 type Section = {
@@ -32,7 +33,7 @@ type Section = {
 
 export default function Sidebar({
   variant = "desktop",
-  collapsed = false,                // << viene del Layout para desktop
+  collapsed = false,
   onToggleCollapsed,
   onRequestClose,
 }: {
@@ -43,35 +44,55 @@ export default function Sidebar({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
-
-  // En móvil no usamos colapso; en desktop usamos `collapsed` del padre
   const isCollapsed = variant === "mobile" ? false : collapsed;
 
-  const sections: Section[] = [
-    {
-      key: "gestion-usuario",
-      label: "Gestión Usuario",
-      icon: Users,
-      children: [{ path: "/users", label: "Usuarios", icon: Users, permission: "view_users" }],
-    },
-    {
-      key: "gestionar-avisos",
-      label: "Gestionar Avisos",
-      icon: Bell,
-      children: [{ path: "/notices", label: "Avisos", icon: Bell, permission: "view_notices" }],
-    },
-    {
-      key: "gestion-propiedades",
-      label: "Gestión Propiedades",
-      icon: Home,
-      children: [
-        { path: "/areas", label: "Áreas Comunes", icon: MapPin, permission: null },
-        { path: "/reservations", label: "Mis Reservas", icon: Calendar, permission: null },
-      ],
-    },
-    { key: "gestionar-reportes", label: "Gestionar Reportes", icon: FileText, children: [] },
-    { key: "gestionar-seguridad", label: "Gestionar Seguridad", icon: ShieldCheck, children: [] },
-  ];
+  // Definición estática de secciones con los CODES de permisos
+  const sections: Section[] = useMemo(
+    () => [
+      {
+        key: "gestion-usuario",
+        label: "Gestión Usuario",
+        icon: Users,
+        children: [
+          { path: "/users", label: "Usuarios", icon: Users, permission: "view_users" },
+           { path: "/roles", label: "Roles", icon: ShieldCheck, permission: "view_users" },
+        ],
+      },
+      {
+        key: "gestionar-avisos",
+        label: "Gestionar Avisos",
+        icon: Bell,
+        children: [
+          { path: "/notices", label: "Avisos", icon: Bell, permission: "view_notices" },
+        ],
+      },
+      {
+        key: "gestion-propiedades",
+        label: "Gestión Propiedades",
+        icon: Home,
+        children: [
+          { path: "/areas", label: "Áreas Comunes", icon: MapPin, permission: "view_areas" },
+          { path: "/reservas", label: "Mis Reservas", icon: Calendar, permission: "view_reservas" },
+          { path: "/properties", label: "Propiedades", icon: Calendar, permission: "view_properties" },
+          { path: "/reportes-uso", label: "Reportes de Uso", icon: FileText, permission: "view_reportes_uso" },
+        ],
+      },
+      {
+        key: "gestion-mantenimiento",
+        label: "Gestión de Mantenimiento",
+        icon: Wrench,
+        children: [
+          { path: "/mantenimiento/tareas", label: "Tareas", icon: FileText, permission: "view_mantenimiento_tareas" },
+          { path: "/mantenimiento/reportes", label: "Reportes", icon: ShieldCheck, permission: "view_mantenimiento_reportes" },
+        ],
+      },
+      
+      { key: "gestionar-reportes", label: "Gestionar Reportes", icon: FileText, children: [] },
+      { key: "gestionar-seguridad", label: "Gestionar Seguridad", icon: ShieldCheck, children: [] },
+    ],
+    
+    []
+  );
 
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
@@ -84,15 +105,20 @@ export default function Sidebar({
   const toggleSection = (key: string) => setOpenSections((p) => ({ ...p, [key]: !p[key] }));
   const isActive = (path: string) => location.pathname === path;
 
+  // Info del usuario (solo para mostrar en el header)
   const [userInfo] = useState(() => {
     try {
-      const user = localStorage.getItem("user");
-      const role = localStorage.getItem("role");
-      return {
-        name: user ? JSON.parse(user).name || "Usuario" : "Usuario",
-        email: user ? JSON.parse(user).email || "usuario@ejemplo.com" : "usuario@ejemplo.com",
-        role: role || "Usuario",
-      };
+      const raw = localStorage.getItem("user");
+      const role = localStorage.getItem("role") || "Usuario";
+      if (raw) {
+        const u = JSON.parse(raw);
+        const first = u.first_name || "";
+        const last = u.last_name || "";
+        const name = `${first} ${last}`.trim() || "Usuario";
+        const email = u.email || "usuario@ejemplo.com";
+        return { name, email, role };
+      }
+      return { name: "Usuario", email: "usuario@ejemplo.com", role };
     } catch {
       return { name: "Usuario", email: "usuario@ejemplo.com", role: "Usuario" };
     }
@@ -101,12 +127,13 @@ export default function Sidebar({
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("refresh");
-    localStorage.removeItem("permissions");
+    localStorage.removeItem("permissions"); // <-- único almacenamiento de permisos
     localStorage.removeItem("user");
     localStorage.removeItem("role");
-    localStorage.removeItem("extra_permissions");
     navigate("/login");
     onRequestClose?.();
+    // notificar a la UI (opcional si usas el hook con suscripción)
+    window.dispatchEvent(new Event("permissions-changed"));
   };
 
   return (
@@ -123,7 +150,6 @@ export default function Sidebar({
               Dashboard
             </h1>
           )}
-
           {variant === "desktop" ? (
             <button
               onClick={onToggleCollapsed}
@@ -144,7 +170,7 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* Contenido scrollable */}
+      {/* Contenido */}
       <div className="flex-1 overflow-y-auto">
         {/* Usuario */}
         <div className="p-4 border-b border-gray-700">
@@ -185,44 +211,24 @@ export default function Sidebar({
             <span className={`justify-self-end w-2 h-2 rounded-full bg-white ${isActive("/dashboard") ? "opacity-100" : "opacity-0"}`} />
           </button>
 
-          {/* Secciones */}
+          {/* Secciones con permisos */}
           <div className="space-y-2">
-            {[
-              {
-                key: "gestion-usuario",
-                label: "Gestión Usuario",
-                icon: Users,
-                children: [{ path: "/users", label: "Usuarios", icon: Users, permission: "view_users" }],
-              },
-              {
-                key: "gestionar-avisos",
-                label: "Gestionar Avisos",
-                icon: Bell,
-                children: [{ path: "/notices", label: "Avisos", icon: Bell, permission: "view_notices" }],
-              },
-              {
-                key: "gestion-propiedades",
-                label: "Gestión Propiedades",
-                icon: Home,
-                children: [
-                  { path: "/areas", label: "Áreas Comunes", icon: MapPin, permission: null },
-                  { path: "/reservations", label: "Mis Reservas", icon: Calendar, permission: null },
-                ],
-              },
-              { key: "gestionar-reportes", label: "Gestionar Reportes", icon: FileText, children: [] },
-              { key: "gestionar-seguridad", label: "Gestionar Seguridad", icon: ShieldCheck, children: [] },
-            ].map((section) => {
+            {sections.map((section) => {
               const SectionIcon = section.icon as any;
-              const hasChildren = (section.children?.length ?? 0) > 0;
-              const visibleChildren = (section.children || []).filter(
-                (c) => !c.permission || hasPermission(c.permission!)
+              const children = section.children ?? [];
+
+              // Filtra hijos por permiso (si no define permission, siempre visible)
+              const visibleChildren = children.filter(
+                (c) => !c.permission || hasPermission(c.permission)
               );
-              if (hasChildren && visibleChildren.length === 0) return null;
+
+              // Si la sección tiene hijos pero ninguno visible, ocultamos la sección
+              if (children.length > 0 && visibleChildren.length === 0) return null;
 
               return (
                 <div key={section.key} className="rounded-lg">
                   <button
-                    onClick={() => (hasChildren ? toggleSection(section.key) : undefined)}
+                    onClick={() => (children.length ? toggleSection(section.key) : undefined)}
                     className={`w-full ${isCollapsed ? "justify-center flex" : "flex items-center space-x-3"} p-3 rounded-lg transition-colors duration-200 hover:bg-gray-700`}
                     title={section.label}
                   >
@@ -232,7 +238,7 @@ export default function Sidebar({
                         <span className="text-sm font-semibold text-gray-200 flex-1 text-left whitespace-nowrap truncate">
                           {section.label}
                         </span>
-                        {hasChildren && (
+                        {children.length > 0 && (
                           <span className="text-xs text-gray-400">
                             {openSections[section.key] ? "−" : "+"}
                           </span>
@@ -241,7 +247,7 @@ export default function Sidebar({
                     )}
                   </button>
 
-                  {hasChildren && openSections[section.key] && !isCollapsed && (
+                  {children.length > 0 && openSections[section.key] && !isCollapsed && (
                     <div className="mt-1">
                       {visibleChildren.map((item) => {
                         const ItemIcon = item.icon as any;

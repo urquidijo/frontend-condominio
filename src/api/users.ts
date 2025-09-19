@@ -1,6 +1,5 @@
 import api from "./axiosConfig";
 import { type Role } from "./roles";
-import { type Permission } from "./permissions";
 
 export interface User {
   id: number;
@@ -8,7 +7,6 @@ export interface User {
   first_name: string;
   last_name: string;
   role: Role | null;
-  extra_permissions?: Permission[];
 }
 
 interface PaginatedResponse<T> {
@@ -38,11 +36,17 @@ export const createUser = async (payload: CreateUserPayload): Promise<User> => {
   return data;
 };
 
-export const updateUser = async (
-  id: number,
-  payload: Partial<Omit<User, "id">>
-): Promise<User> => {
-  const { data } = await api.put<User>(`users/${id}/`, payload);
+export interface UpdateUserPayload {
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  password?: string;
+  role_id?: number | null;
+}
+
+// api/users.ts
+export const updateUser = async (id: number, payload: UpdateUserPayload): Promise<User> => {
+  const { data } = await api.patch<User>(`users/${id}/`, payload); // 👈 PATCH en vez de PUT
   return data;
 };
 
@@ -50,3 +54,6 @@ export const deleteUser = async (id: number): Promise<void> => {
   await api.delete(`users/${id}/`);
 };
 
+export const assignRole = async (userId: number, roleId: number | null) => {
+  await api.post(`users/${userId}/assign_role/`, { role_id: roleId });
+};
