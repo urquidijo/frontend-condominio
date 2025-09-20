@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Eye, EyeOff, Mail, Lock, LogIn } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { login } from "../api/auth"; // 👈 usamos tu API centralizada
+import { registrarBitacora } from "../api/bitacora";
 
 interface LoginFormData {
   email: string;
@@ -25,7 +26,9 @@ const Login = () => {
     const newErrors: Partial<LoginFormData> = {};
     if (!formData.email) {
       newErrors.email = "El correo es obligatorio";
-    } else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(formData.email)) {
+    } else if (
+      !/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(formData.email)
+    ) {
       newErrors.email = "Ingresa un correo válido";
     }
     if (!formData.password) {
@@ -53,15 +56,20 @@ const Login = () => {
 
     setIsSubmitting(true);
     setLoginError("");
+    let user;
 
     try {
       // 🔹 Usamos la función login de auth.ts
-      await login(formData.email, formData.password);
+      user = await login(formData.email, formData.password);
+      await registrarBitacora(user.id, "Inicio de sesión", "exitoso");
+      // en login
+      localStorage.setItem("userId", JSON.stringify(user.id));
 
       // Redirigir al dashboard
       navigate("/dashboard", { replace: true });
     } catch (error) {
       if (error instanceof Error) {
+        await registrarBitacora(user.id, "Inicio de sesión", "fallido");
         setLoginError(error.message);
       } else {
         setLoginError("Error de conexión. Intenta nuevamente.");
@@ -90,7 +98,10 @@ const Login = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
                 Correo Electrónico
               </label>
               <div className="relative">
@@ -109,12 +120,17 @@ const Login = () => {
                   placeholder="Correo"
                 />
               </div>
-              {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+              )}
             </div>
 
             {/* Password */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
                 Contraseña
               </label>
               <div className="relative">
@@ -144,7 +160,9 @@ const Login = () => {
                   )}
                 </button>
               </div>
-              {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
+              {errors.password && (
+                <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+              )}
             </div>
 
             {/* Error Message */}

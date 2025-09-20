@@ -6,6 +6,7 @@ import Users from "./pages/Users";
 import Notices from "./pages/Notices";
 import Dashboard from "./pages/Dashboard";
 import Areas from "./pages/Areas";
+import Bitacora from "./pages/Bitacora";
 
 // Componentes
 import Layout from "./components/Layout"; // << usa el Layout con sidebar responsive
@@ -68,6 +69,16 @@ export default function App() {
               <ProtectedRoute requiredPermission="view_users">
                 <Layout>
                   <Users />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bitacora"
+            element={
+              <ProtectedRoute requiredPermission="view_users">
+                <Layout>
+                  <Bitacora />
                 </Layout>
               </ProtectedRoute>
             }

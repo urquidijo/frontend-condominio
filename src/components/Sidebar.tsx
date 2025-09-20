@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { hasPermission } from "../hooks/usePermissions";
+import { registrarBitacora } from "../api/bitacora";
 
 type SubItem = {
   path: string;
@@ -54,8 +55,24 @@ export default function Sidebar({
         label: "Gestión Usuario",
         icon: Users,
         children: [
-          { path: "/users", label: "Usuarios", icon: Users, permission: "view_users" },
-           { path: "/roles", label: "Roles", icon: ShieldCheck, permission: "view_users" },
+          {
+            path: "/users",
+            label: "Usuarios",
+            icon: Users,
+            permission: "view_users",
+          },
+          {
+            path: "/roles",
+            label: "Roles",
+            icon: ShieldCheck,
+            permission: "view_users",
+          },
+          {
+            path: "/bitacora",
+            label: "Bitacora",
+            icon: FileText,
+            permission: "view_users",
+          },
         ],
       },
       {
@@ -63,7 +80,12 @@ export default function Sidebar({
         label: "Gestionar Avisos",
         icon: Bell,
         children: [
-          { path: "/notices", label: "Avisos", icon: Bell, permission: "view_notices" },
+          {
+            path: "/notices",
+            label: "Avisos",
+            icon: Bell,
+            permission: "view_notices",
+          },
         ],
       },
       {
@@ -71,10 +93,30 @@ export default function Sidebar({
         label: "Gestión Propiedades",
         icon: Home,
         children: [
-          { path: "/areas", label: "Áreas Comunes", icon: MapPin, permission: "view_areas" },
-          { path: "/reservas", label: "Mis Reservas", icon: Calendar, permission: "view_reservas" },
-          { path: "/properties", label: "Propiedades", icon: Calendar, permission: "view_properties" },
-          { path: "/reportes-uso", label: "Reportes de Uso", icon: FileText, permission: "view_reportes_uso" },
+          {
+            path: "/areas",
+            label: "Áreas Comunes",
+            icon: MapPin,
+            permission: "view_areas",
+          },
+          {
+            path: "/reservas",
+            label: "Mis Reservas",
+            icon: Calendar,
+            permission: "view_reservas",
+          },
+          {
+            path: "/properties",
+            label: "Propiedades",
+            icon: Calendar,
+            permission: "view_properties",
+          },
+          {
+            path: "/reportes-uso",
+            label: "Reportes de Uso",
+            icon: FileText,
+            permission: "view_reportes_uso",
+          },
         ],
       },
       {
@@ -82,27 +124,52 @@ export default function Sidebar({
         label: "Gestión de Mantenimiento",
         icon: Wrench,
         children: [
-          { path: "/mantenimiento/tareas", label: "Tareas", icon: FileText, permission: "view_mantenimiento_tareas" },
-          { path: "/mantenimiento/reportes", label: "Reportes", icon: ShieldCheck, permission: "view_mantenimiento_reportes" },
+          {
+            path: "/mantenimiento/tareas",
+            label: "Tareas",
+            icon: FileText,
+            permission: "view_mantenimiento_tareas",
+          },
+          {
+            path: "/mantenimiento/reportes",
+            label: "Reportes",
+            icon: ShieldCheck,
+            permission: "view_mantenimiento_reportes",
+          },
         ],
       },
-      
-      { key: "gestionar-reportes", label: "Gestionar Reportes", icon: FileText, children: [] },
-      { key: "gestionar-seguridad", label: "Gestionar Seguridad", icon: ShieldCheck, children: [] },
+
+      {
+        key: "gestionar-reportes",
+        label: "Gestionar Reportes",
+        icon: FileText,
+        children: [],
+      },
+      {
+        key: "gestionar-seguridad",
+        label: "Gestionar Seguridad",
+        icon: ShieldCheck,
+        children: [],
+      },
     ],
-    
+
     []
   );
 
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
-    const initial: Record<string, boolean> = {};
-    sections.forEach((s) => {
-      initial[s.key] = !!s.children?.some((c) => c.path === location.pathname);
-    });
-    return initial;
-  });
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(
+    () => {
+      const initial: Record<string, boolean> = {};
+      sections.forEach((s) => {
+        initial[s.key] = !!s.children?.some(
+          (c) => c.path === location.pathname
+        );
+      });
+      return initial;
+    }
+  );
 
-  const toggleSection = (key: string) => setOpenSections((p) => ({ ...p, [key]: !p[key] }));
+  const toggleSection = (key: string) =>
+    setOpenSections((p) => ({ ...p, [key]: !p[key] }));
   const isActive = (path: string) => location.pathname === path;
 
   // Info del usuario (solo para mostrar en el header)
@@ -124,10 +191,16 @@ export default function Sidebar({
     }
   });
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const userId = localStorage.getItem("userId"); // viene como string o null
+
+    if (userId) {
+      await registrarBitacora(parseInt(userId), "Cierre de sesión", "exitoso");
+    }
     localStorage.removeItem("token");
     localStorage.removeItem("refresh");
     localStorage.removeItem("permissions"); // <-- único almacenamiento de permisos
+    localStorage.removeItem("userId");
     localStorage.removeItem("user");
     localStorage.removeItem("role");
     navigate("/login");
@@ -156,7 +229,11 @@ export default function Sidebar({
               className="p-2 hover:bg-gray-700 rounded-lg transition-colors duration-200 ml-auto hidden md:inline-flex"
               title={isCollapsed ? "Expandir sidebar" : "Contraer sidebar"}
             >
-              {isCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+              {isCollapsed ? (
+                <ChevronRight className="w-5 h-5" />
+              ) : (
+                <ChevronLeft className="w-5 h-5" />
+              )}
             </button>
           ) : (
             <button
@@ -184,7 +261,9 @@ export default function Sidebar({
             {!isCollapsed && (
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{userInfo.name}</p>
-                <p className="text-xs text-gray-400 truncate">{userInfo.role}</p>
+                <p className="text-xs text-gray-400 truncate">
+                  {userInfo.role}
+                </p>
               </div>
             )}
           </div>
@@ -199,16 +278,36 @@ export default function Sidebar({
             }}
             className={`w-full grid grid-cols-[24px_minmax(0,1fr)_10px] items-center
               p-3 rounded-lg transition-all duration-200 group mb-2
-              ${isActive("/dashboard") ? "bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg shadow-blue-500/25" : "hover:bg-gray-700 hover:shadow-md"}`}
+              ${
+                isActive("/dashboard")
+                  ? "bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg shadow-blue-500/25"
+                  : "hover:bg-gray-700 hover:shadow-md"
+              }`}
             title="Inicio"
           >
-            <Home className={`w-5 h-5 ${isActive("/dashboard") ? "text-white" : "text-gray-300 group-hover:text-white"}`} />
+            <Home
+              className={`w-5 h-5 ${
+                isActive("/dashboard")
+                  ? "text-white"
+                  : "text-gray-300 group-hover:text-white"
+              }`}
+            />
             {!isCollapsed && (
-              <span className={`text-sm font-medium whitespace-nowrap truncate ${isActive("/dashboard") ? "text-white" : "text-gray-300 group-hover:text-white"}`}>
+              <span
+                className={`text-sm font-medium whitespace-nowrap truncate ${
+                  isActive("/dashboard")
+                    ? "text-white"
+                    : "text-gray-300 group-hover:text-white"
+                }`}
+              >
                 Inicio
               </span>
             )}
-            <span className={`justify-self-end w-2 h-2 rounded-full bg-white ${isActive("/dashboard") ? "opacity-100" : "opacity-0"}`} />
+            <span
+              className={`justify-self-end w-2 h-2 rounded-full bg-white ${
+                isActive("/dashboard") ? "opacity-100" : "opacity-0"
+              }`}
+            />
           </button>
 
           {/* Secciones con permisos */}
@@ -223,13 +322,20 @@ export default function Sidebar({
               );
 
               // Si la sección tiene hijos pero ninguno visible, ocultamos la sección
-              if (children.length > 0 && visibleChildren.length === 0) return null;
+              if (children.length > 0 && visibleChildren.length === 0)
+                return null;
 
               return (
                 <div key={section.key} className="rounded-lg">
                   <button
-                    onClick={() => (children.length ? toggleSection(section.key) : undefined)}
-                    className={`w-full ${isCollapsed ? "justify-center flex" : "flex items-center space-x-3"} p-3 rounded-lg transition-colors duration-200 hover:bg-gray-700`}
+                    onClick={() =>
+                      children.length ? toggleSection(section.key) : undefined
+                    }
+                    className={`w-full ${
+                      isCollapsed
+                        ? "justify-center flex"
+                        : "flex items-center space-x-3"
+                    } p-3 rounded-lg transition-colors duration-200 hover:bg-gray-700`}
                     title={section.label}
                   >
                     <SectionIcon className="w-5 h-5 text-gray-300" />
@@ -247,33 +353,55 @@ export default function Sidebar({
                     )}
                   </button>
 
-                  {children.length > 0 && openSections[section.key] && !isCollapsed && (
-                    <div className="mt-1">
-                      {visibleChildren.map((item) => {
-                        const ItemIcon = item.icon as any;
-                        const active = isActive(item.path);
-                        return (
-                          <button
-                            key={item.path}
-                            onClick={() => {
-                              navigate(item.path);
-                              onRequestClose?.();
-                            }}
-                            className={`w-full grid grid-cols-[20px_minmax(0,1fr)_10px] items-center gap-3
+                  {children.length > 0 &&
+                    openSections[section.key] &&
+                    !isCollapsed && (
+                      <div className="mt-1">
+                        {visibleChildren.map((item) => {
+                          const ItemIcon = item.icon as any;
+                          const active = isActive(item.path);
+                          return (
+                            <button
+                              key={item.path}
+                              onClick={() => {
+                                navigate(item.path);
+                                onRequestClose?.();
+                              }}
+                              className={`w-full grid grid-cols-[20px_minmax(0,1fr)_10px] items-center gap-3
                               pl-8 pr-3 py-2 rounded-md transition-all duration-200
-                              ${active ? "bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg shadow-blue-500/25" : "hover:bg-gray-700"}`}
-                            title={item.label}
-                          >
-                            <ItemIcon className={`w-4 h-4 ${active ? "text-white" : "text-gray-300 group-hover:text-white"}`} />
-                            <span className={`text-sm whitespace-nowrap truncate ${active ? "text-white" : "text-gray-300 group-hover:text-white"}`}>
-                              {item.label}
-                            </span>
-                            <span className={`justify-self-end w-2 h-2 rounded-full bg-white ${active ? "opacity-100" : "opacity-0"}`} />
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+                              ${
+                                active
+                                  ? "bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg shadow-blue-500/25"
+                                  : "hover:bg-gray-700"
+                              }`}
+                              title={item.label}
+                            >
+                              <ItemIcon
+                                className={`w-4 h-4 ${
+                                  active
+                                    ? "text-white"
+                                    : "text-gray-300 group-hover:text-white"
+                                }`}
+                              />
+                              <span
+                                className={`text-sm whitespace-nowrap truncate ${
+                                  active
+                                    ? "text-white"
+                                    : "text-gray-300 group-hover:text-white"
+                                }`}
+                              >
+                                {item.label}
+                              </span>
+                              <span
+                                className={`justify-self-end w-2 h-2 rounded-full bg-white ${
+                                  active ? "opacity-100" : "opacity-0"
+                                }`}
+                              />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                 </div>
               );
             })}
@@ -285,11 +413,15 @@ export default function Sidebar({
       <div className="p-4 border-t border-gray-700">
         <button
           onClick={handleLogout}
-          className={`w-full ${isCollapsed ? "justify-center" : "flex items-center space-x-3"} p-3 bg-red-600 hover:bg-red-700 rounded-lg transition-all duration-200 group shadow-lg hover:shadow-red-500/25`}
+          className={`w-full ${
+            isCollapsed ? "justify-center" : "flex items-center space-x-3"
+          } p-3 bg-red-600 hover:bg-red-700 rounded-lg transition-all duration-200 group shadow-lg hover:shadow-red-500/25`}
           title="Cerrar Sesión"
         >
           <LogOut className="w-5 h-5" />
-          {!isCollapsed && <span className="text-sm font-medium">Cerrar Sesión</span>}
+          {!isCollapsed && (
+            <span className="text-sm font-medium">Cerrar Sesión</span>
+          )}
         </button>
       </div>
     </div>
