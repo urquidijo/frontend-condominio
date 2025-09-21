@@ -166,10 +166,10 @@ const ConsultaPagos: React.FC = () => {
   /* ───────────────────────────────
    * Derivados
    * ─────────────────────────────── */
-  const cfgSelected = useMemo(
-    () => configs.find((c) => c.id === form.price_config_id) || null,
-    [configs, form.price_config_id]
-  );
+  // const cfgSelected = useMemo(
+  //   () => configs.find((c) => c.id === form.price_config_id) || null,
+  //   [configs, form.price_config_id]
+  // );
 
   const filteredCharges = useMemo(
     () => (filterPropId ? charges.filter((c) => c.property_id === filterPropId) : charges),

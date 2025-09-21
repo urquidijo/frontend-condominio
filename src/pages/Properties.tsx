@@ -276,14 +276,14 @@ export default function Properties() {
   };
 
   // --- Contadores por edificio (si los usas en algún lado) ---
-  const countA = useMemo(
-    () => casas.filter((c) => c.numero.startsWith("A")).length,
-    [casas]
-  );
-  const countB = useMemo(
-    () => casas.filter((c) => c.numero.startsWith("B")).length,
-    [casas]
-  );
+  // const countA = useMemo(
+  //   () => casas.filter((c) => c.numero.startsWith("A")).length,
+  //   [casas]
+  // );
+  // const countB = useMemo(
+  //   () => casas.filter((c) => c.numero.startsWith("B")).length,
+  //   [casas]
+  // );
 
   // -------- RENDER --------
   return (
