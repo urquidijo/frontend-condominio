@@ -1,42 +1,43 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Home, Building, Edit3, Trash2, X } from "lucide-react";
 
-// ---- APIs ----
 import {
   getProperties,
   createProperty,
   updateProperty,
   deleteProperty,
+  addTenant,
+  removeTenant,
   type Property,
 } from "../api/properties";
 
-// importa desde el archivo donde pusiste las áreas/reservas
 import { getAreas, type CommonArea } from "../api/commons";
+import { getUsersByRoleName } from "../api/properties";
+import type { User } from "../api/users";
 
-// ---- Tipos auxiliares ----
 type NewProperty = {
   numero: string;
-  propietario?: string;
-  telefono?: string;
-  email?: string;
   area: string;
   edificio: string;
+  owner_id?: number | null;
 };
 
 export default function Properties() {
-  // -------- PROPIEDADES --------
+  // -------- DATA --------
   const [casas, setCasas] = useState<Property[]>([]);
   const [selectedProperty, setSelectedProperty] = useState<number | null>(null);
+
+  // Owners / Tenants candidates (desde /users/, filtrados por rol)
+  const [ownerCandidates, setOwnerCandidates] = useState<User[]>([]);
+  const [tenantCandidates, setTenantCandidates] = useState<User[]>([]);
 
   // CREATE
   const [showAddProperty, setShowAddProperty] = useState(false);
   const [newProperty, setNewProperty] = useState<NewProperty>({
     numero: "",
-    propietario: "",
-    telefono: "",
-    email: "",
     area: "",
     edificio: "A",
+    owner_id: null,
   });
 
   // UPDATE
@@ -48,14 +49,19 @@ export default function Properties() {
   const [showDelete, setShowDelete] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Property | null>(null);
 
-  // -------- ÁREAS COMUNES --------
+  // TENANTS UI
+  const [showTenantsModal, setShowTenantsModal] = useState(false);
+  const [tenantToAdd, setTenantToAdd] = useState<number | "">("");
+
+  // AREAS
   const [areas, setAreas] = useState<CommonArea[]>([]);
   const [selectedArea, setSelectedArea] = useState<CommonArea | null>(null);
 
-  // -------- CARGA INICIAL --------
+  // -------- LOAD --------
   useEffect(() => {
     load();
     loadAreas();
+    loadUsers();
   }, []);
 
   const load = async () => {
@@ -70,6 +76,16 @@ export default function Properties() {
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const loadUsers = async () => {
+    // Filtra por roles exactos como están en tu BD: Copropietario / Inquilino
+    const [owners, tenants] = await Promise.all([
+      getUsersByRoleName("Copropietario"),
+      getUsersByRoleName("Inquilino"),
+    ]);
+    setOwnerCandidates(owners);
+    setTenantCandidates(tenants);
   };
 
   // -------- HELPERS --------
@@ -87,7 +103,40 @@ export default function Properties() {
     return `${edificio}-${nextNumber}`;
   };
 
-  // -------- SELECTORES EXCLUSIVOS --------
+  const ownerLabel = (casa: Property) => {
+    if (!casa.owner) return "—";
+    const { first_name, last_name, email } = casa.owner;
+    const name = `${first_name ?? ""} ${last_name ?? ""}`.trim();
+    return name || email || `#${casa.owner.id}`;
+  };
+
+  const tenantsLabel = (casa: Property) => {
+    if (!casa.tenants?.length) return "—";
+    return casa.tenants
+      .map((t) => {
+        const u = t.user;
+        const name = `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim();
+        return name || u.email || `#${u.id}`;
+      })
+      .join(", ");
+  };
+
+  const currentCasa = useMemo(
+    () => casas.find((c) => c.id === selectedProperty) || null,
+    [casas, selectedProperty]
+  );
+
+  // etiqueta de estado para áreas
+  const estadoClasses = (estado: CommonArea["estado"]) =>
+    estado === "DISPONIBLE"
+      ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+      : estado === "MANTENIMIENTO"
+      ? "bg-amber-100 text-amber-800 border-amber-300"
+      : "bg-red-100 text-red-800 border-red-300";
+
+  const hhmm = (t?: string) => (t ? t.slice(0, 5) : "—");
+
+  // -------- SELECTORS --------
   const selectProperty = (id: number) => {
     setSelectedArea(null);
     setSelectedProperty((prev) => (prev === id ? null : id));
@@ -104,16 +153,15 @@ export default function Properties() {
       return;
     }
     try {
-      const saved = await createProperty(newProperty);
+      const payload = {
+        edificio: newProperty.edificio,
+        numero: newProperty.numero.toUpperCase().trim(),
+        area: newProperty.area,
+        owner_id: newProperty.owner_id ?? null,
+      };
+      const saved = await createProperty(payload);
       setCasas((prev) => [...prev, saved]);
-      setNewProperty({
-        numero: "",
-        propietario: "",
-        telefono: "",
-        email: "",
-        area: "",
-        edificio: "A",
-      });
+      setNewProperty({ numero: "", area: "", edificio: "A", owner_id: null });
       setShowAddProperty(false);
     } catch (err) {
       console.error(err);
@@ -126,11 +174,9 @@ export default function Properties() {
     setEditTarget(casa);
     setEditForm({
       numero: casa.numero,
-      propietario: casa.propietario || "",
-      telefono: casa.telefono || "",
-      email: casa.email || "",
-      area: casa.area?.toString?.() ?? "",
+      area: casa.area?.toString?.() ?? casa.area_m2?.toString?.() ?? "",
       edificio: casa.edificio,
+      owner_id: casa.owner?.id ?? null,
     });
     setSelectedArea(null);
     setSelectedProperty(casa.id);
@@ -140,7 +186,13 @@ export default function Properties() {
   const handleUpdateProperty = async () => {
     if (!editTarget) return;
     try {
-      const updated = await updateProperty(editTarget.id, { ...editForm });
+      const payload: Partial<NewProperty> = {};
+      if (editForm.edificio) payload.edificio = editForm.edificio;
+      if (editForm.numero) payload.numero = editForm.numero.toUpperCase().trim();
+      if (typeof editForm.owner_id !== "undefined") payload.owner_id = editForm.owner_id;
+      if (typeof editForm.area !== "undefined") payload.area = editForm.area;
+
+      const updated = await updateProperty(editTarget.id, payload);
       setCasas((prev) => prev.map((c) => (c.id === editTarget.id ? updated : c)));
       setSelectedProperty(updated.id);
       setShowEdit(false);
@@ -169,6 +221,69 @@ export default function Properties() {
       alert("Error al eliminar la propiedad");
     }
   };
+
+  // -------- TENANTS (UI + acciones) --------
+  const openTenantsModal = (casa: Property) => {
+    setSelectedArea(null);
+    setSelectedProperty(casa.id);
+    setTenantToAdd("");
+    setShowTenantsModal(true);
+  };
+
+  const handleAddTenant = async () => {
+    if (!currentCasa || tenantToAdd === "") return;
+    try {
+      const tenant = await addTenant(currentCasa.id, Number(tenantToAdd));
+      setCasas((prev) =>
+        prev.map((c) =>
+          c.id === currentCasa.id
+            ? {
+                ...c,
+                tenants: (c.tenants || []).some((t) => t.user.id === tenant.user.id)
+                  ? c.tenants
+                  : [...(c.tenants || []), tenant],
+                estado: "ocupada",
+              }
+            : c
+        )
+      );
+      setTenantToAdd("");
+    } catch (e) {
+      console.error(e);
+      alert("No se pudo agregar el inquilino.");
+    }
+  };
+
+  const handleRemoveTenant = async (userId: number) => {
+    if (!currentCasa) return;
+    try {
+      await removeTenant(currentCasa.id, userId);
+      setCasas((prev) =>
+        prev.map((c) => {
+          if (c.id !== currentCasa.id) return c;
+          const newTenants = (c.tenants || []).filter((t) => t.user.id !== userId);
+          return {
+            ...c,
+            tenants: newTenants,
+            estado: newTenants.length ? "ocupada" : "disponible",
+          };
+        })
+      );
+    } catch (e) {
+      console.error(e);
+      alert("No se pudo quitar el inquilino.");
+    }
+  };
+
+  // --- Contadores por edificio (si los usas en algún lado) ---
+  const countA = useMemo(
+    () => casas.filter((c) => c.numero.startsWith("A")).length,
+    [casas]
+  );
+  const countB = useMemo(
+    () => casas.filter((c) => c.numero.startsWith("B")).length,
+    [casas]
+  );
 
   // -------- RENDER --------
   return (
@@ -249,39 +364,7 @@ export default function Properties() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Propietario (opcional)
-                  </label>
-                  <input
-                    type="text"
-                    value={newProperty.propietario}
-                    onChange={(e) =>
-                      setNewProperty({
-                        ...newProperty,
-                        propietario: e.target.value,
-                      })
-                    }
-                    className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm"
-                    placeholder="Nombre del propietario"
-                  />
-                </div>
-
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Teléfono
-                    </label>
-                    <input
-                      type="text"
-                      value={newProperty.telefono}
-                      onChange={(e) =>
-                        setNewProperty({ ...newProperty, telefono: e.target.value })
-                      }
-                      className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm"
-                      placeholder="+591 7123-4567"
-                    />
-                  </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                       Área
@@ -296,21 +379,31 @@ export default function Properties() {
                       placeholder="120 m²"
                     />
                   </div>
-                </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={newProperty.email}
-                    onChange={(e) =>
-                      setNewProperty({ ...newProperty, email: e.target.value })
-                    }
-                    className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm"
-                    placeholder="email@ejemplo.com"
-                  />
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Dueño (Copropietario)
+                    </label>
+                    <select
+                      value={newProperty.owner_id ?? ""}
+                      onChange={(e) =>
+                        setNewProperty({
+                          ...newProperty,
+                          owner_id: e.target.value ? Number(e.target.value) : null,
+                        })
+                      }
+                      className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm"
+                    >
+                      <option value="">— Sin dueño —</option>
+                      {ownerCandidates.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {(u.first_name || u.last_name)
+                            ? `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim()
+                            : u.email}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -345,7 +438,7 @@ export default function Properties() {
 
           {/* compacto */}
           <div className="bg-green-100 rounded-lg p-6 min-h-[480px] md:min-h-[520px] border-2 border-green-300 relative">
-            {/* ---- Áreas comunes (ESTILO ORIGINAL) ---- */}
+            {/* áreas */}
             <div className="w-full flex items-center justify-center mb-5">
               <div className="max-w-3xl w-full overflow-x-auto">
                 <div className="flex gap-3 px-2">
@@ -374,7 +467,7 @@ export default function Properties() {
               </div>
             </div>
 
-            {/* ---- Edificio A ---- */}
+            {/* edificio A */}
             <div className="absolute left-10 top-28">
               <div className="text-center mb-2">
                 <span className="bg-blue-600 text-white px-3 py-1 rounded text-xs font-bold">
@@ -400,7 +493,7 @@ export default function Properties() {
                                         : ""
                                     }`}
                         onClick={() => selectProperty(casa.id)}
-                        title={`Propietario: ${casa.propietario || "Disponible"}`}
+                        title={`Propietario: ${ownerLabel(casa)} · Inq: ${tenantsLabel(casa)}`}
                       >
                         {casa.numero}
                       </button>
@@ -409,7 +502,7 @@ export default function Properties() {
               </div>
             </div>
 
-            {/* ---- Edificio B ---- */}
+            {/* edificio B */}
             <div className="absolute right-10 top-28">
               <div className="text-center mb-2">
                 <span className="bg-blue-600 text-white px-3 py-1 rounded text-xs font-bold">
@@ -435,7 +528,7 @@ export default function Properties() {
                                         : ""
                                     }`}
                         onClick={() => selectProperty(casa.id)}
-                        title={`Propietario: ${casa.propietario || "Disponible"}`}
+                        title={`Propietario: ${ownerLabel(casa)} · Inq: ${tenantsLabel(casa)}`}
                       >
                         {casa.numero}
                       </button>
@@ -444,7 +537,7 @@ export default function Properties() {
               </div>
             </div>
 
-            {/* ---- PARQUE (centro, sin emojis) ---- */}
+            {/* parque */}
             <div className="absolute left-1/2 top-36 -translate-x-1/2">
               <div className="w-32 h-20 bg-yellow-300 border-2 border-yellow-500 rounded
                               flex items-center justify-center
@@ -453,7 +546,7 @@ export default function Properties() {
               </div>
             </div>
 
-            {/* ---- Entrada y calle ---- */}
+            {/* entrada y calle */}
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-20 h-5 bg-gray-700 text-white flex items-center justify-center text-[11px] font-bold rounded">
               ENTRADA
             </div>
@@ -487,67 +580,58 @@ export default function Properties() {
             </div>
           </div>
 
-          {/* Panel de info (exclusivo) */}
-          {selectedProperty ? (
+          {/* Panel de info */}
+          {currentCasa ? (
             <div className="mt-5 bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
-              {(() => {
-                const casa = casas.find((c) => c.id === selectedProperty);
-                return casa ? (
-                  <div>
-                    <div className="flex items-start justify-between">
-                      <h4 className="font-semibold text-blue-900 text-base mb-2">
-                        Propiedad {casa.numero}
-                      </h4>
-                      <div className="space-x-2">
-                        <button
-                          onClick={() => openEdit(casa)}
-                          className="bg-amber-500 text-white px-3 py-1.5 rounded hover:bg-amber-600 text-xs inline-flex items-center"
-                        >
-                          <Edit3 className="w-4 h-4 mr-1" />
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => openDelete(casa)}
-                          className="bg-red-600 text-white px-3 py-1.5 rounded hover:bg-red-700 text-xs inline-flex items-center"
-                        >
-                          <Trash2 className="w-4 h-4 mr-1" />
-                          Eliminar
-                        </button>
-                      </div>
-                    </div>
+              <div className="flex items-start justify-between">
+                <h4 className="font-semibold text-blue-900 text-base mb-2">
+                  Propiedad {currentCasa.numero}
+                </h4>
+                <div className="space-x-2">
+                  <button
+                    onClick={() => openEdit(currentCasa)}
+                    className="bg-amber-500 text-white px-3 py-1.5 rounded hover:bg-amber-600 text-xs inline-flex items-center"
+                  >
+                    <Edit3 className="w-4 h-4 mr-1" />
+                    Editar
+                  </button>
+                  <button
+                    onClick={() => openTenantsModal(currentCasa)}
+                    className="bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 text-xs inline-flex items-center"
+                  >
+                    Gestionar inquilinos
+                  </button>
+                  <button
+                    onClick={() => openDelete(currentCasa)}
+                    className="bg-red-600 text-white px-3 py-1.5 rounded hover:bg-red-700 text-xs inline-flex items-center"
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Eliminar
+                  </button>
+                </div>
+              </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <strong>Propietario:</strong>{" "}
-                        {casa.propietario || "Disponible"}
-                      </div>
-                      <div>
-                        <strong>Estado:</strong>{" "}
-                        <span className="capitalize">{casa.estado}</span>
-                      </div>
-                      <div>
-                        <strong>Área:</strong> {casa.area ?? casa.area_m2 ?? "—"}
-                      </div>
-                      {casa.propietario && (
-                        <>
-                          <div>
-                            <strong>Teléfono:</strong> {casa.telefono || "—"}
-                          </div>
-                          <div>
-                            <strong>Email:</strong> {casa.email || "—"}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => setSelectedProperty(null)}
-                      className="bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 text-xs mt-3"
-                    >
-                      Cerrar
-                    </button>
-                  </div>
-                ) : null;
-              })()}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                <div>
+                  <strong>Propietario:</strong> {ownerLabel(currentCasa)}
+                </div>
+                <div>
+                  <strong>Inquilinos:</strong> {tenantsLabel(currentCasa)}
+                </div>
+                <div>
+                  <strong>Estado:</strong>{" "}
+                  <span className="capitalize">{currentCasa.estado}</span>
+                </div>
+                <div>
+                  <strong>Área:</strong> {currentCasa.area ?? currentCasa.area_m2 ?? "—"}
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedProperty(null)}
+                className="bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 text-xs mt-3"
+              >
+                Cerrar
+              </button>
             </div>
           ) : selectedArea ? (
             <div className="mt-5 bg-emerald-50 border-l-4 border-emerald-400 p-4 rounded">
@@ -556,14 +640,9 @@ export default function Properties() {
                   Área Común: {selectedArea.nombre}
                 </h4>
                 <span
-                  className={`px-2 py-0.5 rounded text-[11px] font-bold border
-                    ${
-                      selectedArea.estado === "DISPONIBLE"
-                        ? "bg-emerald-100 text-emerald-800 border-emerald-300"
-                        : selectedArea.estado === "MANTENIMIENTO"
-                        ? "bg-amber-100 text-amber-800 border-amber-300"
-                        : "bg-red-100 text-red-800 border-red-300"
-                    }`}
+                  className={`px-2 py-0.5 rounded text-[11px] font-bold border ${estadoClasses(
+                    selectedArea.estado
+                  )}`}
                 >
                   {selectedArea.estado}
                 </span>
@@ -574,11 +653,11 @@ export default function Properties() {
                   <strong>Ubicación:</strong> {selectedArea.ubicacion || "—"}
                 </div>
                 <div>
-                  <strong>Capacidad:</strong> {selectedArea.capacidad}
+                  <strong>Capacidad:</strong> {selectedArea.capacidad ?? "—"}
                 </div>
                 <div>
                   <strong>Horario:</strong>{" "}
-                  {selectedArea.horario_apertura} - {selectedArea.horario_cierre}
+                  {hhmm(selectedArea.horario_apertura)} – {hhmm(selectedArea.horario_cierre)}
                 </div>
                 <div className="md:col-span-2">
                   <strong>Descripción:</strong>{" "}
@@ -645,34 +724,7 @@ export default function Properties() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Propietario
-                </label>
-                <input
-                  type="text"
-                  value={editForm.propietario || ""}
-                  onChange={(e) =>
-                    setEditForm((p) => ({ ...p, propietario: e.target.value }))
-                  }
-                  className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm"
-                />
-              </div>
-
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Teléfono
-                  </label>
-                  <input
-                    type="text"
-                    value={editForm.telefono || ""}
-                    onChange={(e) =>
-                      setEditForm((p) => ({ ...p, telefono: e.target.value }))
-                    }
-                    className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm"
-                  />
-                </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     Área
@@ -686,20 +738,33 @@ export default function Properties() {
                     className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm"
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={editForm.email || ""}
-                  onChange={(e) =>
-                    setEditForm((p) => ({ ...p, email: e.target.value }))
-                  }
-                  className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm"
-                />
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Dueño (Copropietario)
+                  </label>
+                  <select
+                    value={
+                      typeof editForm.owner_id === "number" ? editForm.owner_id : ""
+                    }
+                    onChange={(e) =>
+                      setEditForm((p) => ({
+                        ...p,
+                        owner_id: e.target.value ? Number(e.target.value) : null,
+                      }))
+                    }
+                    className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm"
+                  >
+                    <option value="">— Sin dueño —</option>
+                    {ownerCandidates.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {(u.first_name || u.last_name)
+                          ? `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim()
+                          : u.email}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -743,6 +808,94 @@ export default function Properties() {
                 className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-md hover:bg-gray-300 text-sm"
               >
                 Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal TENANTS */}
+      {showTenantsModal && currentCasa && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-5 w-full max-w-md mx-4 relative">
+            <button
+              onClick={() => setShowTenantsModal(false)}
+              className="absolute right-3 top-3 p-1 rounded hover:bg-gray-100"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <h3 className="text-base font-semibold text-gray-900 mb-3">
+              Inquilinos de {currentCasa.numero}
+            </h3>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Agregar inquilino (rol: Inquilino)
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    value={tenantToAdd}
+                    onChange={(e) =>
+                      setTenantToAdd(e.target.value ? Number(e.target.value) : "")
+                    }
+                    className="flex-1 border border-gray-300 rounded-md px-2.5 py-2 text-sm"
+                  >
+                    <option value="">— Selecciona un inquilino —</option>
+                    {tenantCandidates
+                      .filter(
+                        (u) => !(currentCasa.tenants || []).some((t) => t.user.id === u.id)
+                      )
+                      .map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {(u.first_name || u.last_name)
+                            ? `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim()
+                            : u.email}
+                        </option>
+                      ))}
+                  </select>
+                  <button
+                    onClick={handleAddTenant}
+                    className="bg-blue-600 text-white px-3 rounded-md text-sm hover:bg-blue-700"
+                  >
+                    Agregar
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-sm font-semibold text-gray-800 mb-1">Actuales</h4>
+                {(currentCasa.tenants || []).length === 0 ? (
+                  <div className="text-sm text-gray-500">No hay inquilinos.</div>
+                ) : (
+                  <ul className="divide-y">
+                    {(currentCasa.tenants || []).map((t) => (
+                      <li key={t.user.id} className="py-2 flex items-center justify-between">
+                        <div className="text-sm">
+                          {t.user.first_name || t.user.last_name
+                            ? `${t.user.first_name ?? ""} ${t.user.last_name ?? ""}`.trim()
+                            : t.user.email}
+                        </div>
+                        <button
+                          onClick={() => handleRemoveTenant(t.user.id)}
+                          className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700"
+                        >
+                          Quitar
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end mt-4">
+              <button
+                onClick={() => setShowTenantsModal(false)}
+                className="bg-gray-200 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-300 text-sm"
+              >
+                Cerrar
               </button>
             </div>
           </div>

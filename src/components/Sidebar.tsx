@@ -73,8 +73,14 @@ export default function Sidebar({
         children: [
           { path: "/areas", label: "Áreas Comunes", icon: MapPin, permission: "view_areas" },
           { path: "/reservas", label: "Mis Reservas", icon: Calendar, permission: "view_reservas" },
+         { path: "/reservas/nueva", label: "Nueva Reserva", icon: Calendar, permission: "view_reservas" },
           { path: "/properties", label: "Propiedades", icon: Calendar, permission: "view_properties" },
           { path: "/reportes-uso", label: "Reportes de Uso", icon: FileText, permission: "view_reportes_uso" },
+         
+      
+          { path: "/pagos", label: "pagos", icon: Calendar, permission: "view_properties" },
+          { path: "/pagos/configuracion", label: "pagos-configuracion", icon: FileText, permission: "view_reportes_uso" },
+          { path: "/reportes/pagos", label: "pagos-reportes", icon: FileText, permission: "view_reportes_uso" },
         ],
       },
       {
