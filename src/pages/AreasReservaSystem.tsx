@@ -1,18 +1,15 @@
-import React, { useState } from "react";
-import {
-  CreditCard,
-  Check,
-} from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useStripe } from "@stripe/react-stripe-js";
 import { Check, Clock, Calendar, MapPin, CreditCard } from "lucide-react";
 import { crearReserva, listarAreas } from "../api/commons";
 import { crearCheckoutSession } from "../api/payments";
 
-type Area = {
+/** ViewModel local: precio como número */
+type AreaVM = {
   id: number;
   nombre: string;
   estado: "DISPONIBLE" | "MANTENIMIENTO" | "CERRADO";
-  precio?: number; // si luego lo guardas en DB
+  precio: number; // numérico para UI
 };
 
 function addOneHour(hhmm: string) {
@@ -26,23 +23,9 @@ function addOneHour(hhmm: string) {
 }
 
 const AreasReservaSystem: React.FC = () => {
-  const [selectedArea, setSelectedArea] = useState<any>(null);
-  const [selectedDate, setSelectedDate] = useState("");
-  const [selectedTime, setSelectedTime] = useState("");
-  const [guests, setGuests] = useState(1);
-  const [userInfo, setUserInfo] = useState({
-    name: "",
-    apartment: "",
-    phone: "",
-    email: "",
-  });
-  const [step, setStep] = useState(1);
-  const [paymentProcessing, setPaymentProcessing] = useState(false);
-  const [reservationComplete, setReservationComplete] = useState(false);
-
   const stripe = useStripe();
 
-  const [areas, setAreas] = useState<Area[]>([]);
+  const [areas, setAreas] = useState<AreaVM[]>([]);
   const [loadingAreas, setLoadingAreas] = useState(true);
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
@@ -58,26 +41,26 @@ const AreasReservaSystem: React.FC = () => {
   const [pagando, setPagando] = useState(false);
 
   useEffect(() => {
-  (async () => {
-    try {
-      const data = await listarAreas(); // CommonArea[]
-      const mapped: Area[] = data.map(a => ({
-        id: a.id,
-        nombre: a.nombre,
-        estado: a.estado,
-        precio: a.precio ? Number(a.precio) : undefined, // ← string → number
-      }));
-      setAreas(mapped);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoadingAreas(false);
-    }
-  })();
-}, []);
+    (async () => {
+      try {
+        const data: any[] = await listarAreas(); // viene con precio:string
+        const vm: AreaVM[] = (data || []).map((a) => ({
+          id: a.id,
+          nombre: a.nombre,
+          estado: a.estado,
+          precio: Number(a.precio ?? 0),
+        }));
+        setAreas(vm);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoadingAreas(false);
+      }
+    })();
+  }, []);
 
   const selectedArea = useMemo(
-    () => areas.find(a => a.id === selectedAreaId) || null,
+    () => areas.find((a) => a.id === selectedAreaId) || null,
     [areas, selectedAreaId]
   );
 
@@ -87,7 +70,7 @@ const AreasReservaSystem: React.FC = () => {
 
   const continuarFechaHora = () => {
     if (!fecha || !horaInicio) return;
-    setHoraFin(prev => prev || addOneHour(horaInicio));
+    setHoraFin((prev) => prev || addOneHour(horaInicio));
     setStep(3);
   };
 
@@ -100,7 +83,7 @@ const AreasReservaSystem: React.FC = () => {
     if (!stripe || !selectedArea) return;
     setPagando(true);
     try {
-      // 1) Crear la reserva
+      // 1) Crear la reserva (el backend guardará el precio real)
       const reserva = await crearReserva({
         area: selectedArea.id,
         fecha_reserva: fecha,
@@ -108,16 +91,12 @@ const AreasReservaSystem: React.FC = () => {
         hora_fin: horaFin || addOneHour(horaInicio),
       });
 
-      // 2) Monto (si aún no tienes precio en DB, usa un map por ID)
-
-
-      // 3) Crear sesión de Checkout
+      // 2) Crear sesión de Checkout SOLO con reservation_id
       const session = await crearCheckoutSession({
-  reservation_id: reserva.id,
-});
+        reservation_id: reserva.id,
+      });
 
-
-      // 4) Redirigir
+      // 3) Redirigir a Stripe
       const { error } = await stripe.redirectToCheckout({ sessionId: session.sessionId });
       if (error) alert(error.message || "Error al redirigir a Stripe");
     } catch (e: any) {
@@ -137,7 +116,9 @@ const AreasReservaSystem: React.FC = () => {
         {success && (
           <div className="mb-4 rounded-lg bg-green-50 border border-green-200 p-3 flex items-center gap-2">
             <Check className="text-green-600 w-5 h-5" />
-            <span>¡Pago realizado! Tu reserva está aprobada y figura como <b>Pagada</b>.</span>
+            <span>
+              ¡Pago realizado! Tu reserva está aprobada y figura como <b>Pagada</b>.
+            </span>
           </div>
         )}
         {canceled && (
@@ -152,7 +133,7 @@ const AreasReservaSystem: React.FC = () => {
             {loadingAreas ? (
               <div>Cargando áreas…</div>
             ) : (
-              areas.map(area => (
+              areas.map((area) => (
                 <button
                   key={area.id}
                   onClick={() => {
@@ -167,7 +148,7 @@ const AreasReservaSystem: React.FC = () => {
                   <div className="text-4xl mb-3">🏢</div>
                   <div className="font-semibold">{area.nombre}</div>
                   <div className="text-sm text-gray-600 flex items-center gap-1 mt-1">
-                    <CreditCard className="w-4 h-4" /> ${area.precio ?? 100} USD
+                    <CreditCard className="w-4 h-4" /> ${area.precio.toFixed(2)} USD
                   </div>
                   <div className="mt-2 text-xs uppercase tracking-wide">
                     {area.estado === "DISPONIBLE" ? "Disponible" : area.estado}
@@ -187,8 +168,12 @@ const AreasReservaSystem: React.FC = () => {
               <span className="text-sm text-gray-600 flex items-center gap-2">
                 <Calendar className="w-4 h-4" /> Fecha
               </span>
-              <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)}
-                     className="border p-2 rounded w-full" />
+              <input
+                type="date"
+                value={fecha}
+                onChange={(e) => setFecha(e.target.value)}
+                className="border p-2 rounded w-full"
+              />
             </label>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -196,22 +181,34 @@ const AreasReservaSystem: React.FC = () => {
                 <span className="text-sm text-gray-600 flex items-center gap-2">
                   <Clock className="w-4 h-4" /> Hora de inicio
                 </span>
-                <input type="time" value={horaInicio} onChange={(e) => setHoraInicio(e.target.value)}
-                       className="border p-2 rounded w-full" />
+                <input
+                  type="time"
+                  value={horaInicio}
+                  onChange={(e) => setHoraInicio(e.target.value)}
+                  className="border p-2 rounded w-full"
+                />
               </label>
 
               <label className="block">
                 <span className="text-sm text-gray-600 flex items-center gap-2">
                   <Clock className="w-4 h-4" /> Hora de fin
                 </span>
-                <input type="time" value={horaFin} onChange={(e) => setHoraFin(e.target.value)}
-                       className="border p-2 rounded w-full" />
+                <input
+                  type="time"
+                  value={horaFin}
+                  onChange={(e) => setHoraFin(e.target.value)}
+                  className="border p-2 rounded w-full"
+                />
               </label>
             </div>
 
             <div className="flex gap-3">
-              <button onClick={() => setStep(1)} className="px-4 py-2 rounded border">Volver</button>
-              <button onClick={continuarFechaHora} className="px-4 py-2 rounded bg-blue-600 text-white">Continuar</button>
+              <button onClick={() => setStep(1)} className="px-4 py-2 rounded border">
+                Volver
+              </button>
+              <button onClick={continuarFechaHora} className="px-4 py-2 rounded bg-blue-600 text-white">
+                Continuar
+              </button>
             </div>
           </div>
         )}
@@ -223,22 +220,39 @@ const AreasReservaSystem: React.FC = () => {
 
             <label className="block">
               <span className="text-sm text-gray-600">Nombre</span>
-              <input className="border p-2 rounded w-full" value={nombre} onChange={(e) => setNombre(e.target.value)} />
+              <input
+                className="border p-2 rounded w-full"
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+              />
             </label>
 
             <label className="block">
               <span className="text-sm text-gray-600">Departamento</span>
-              <input className="border p-2 rounded w-full" value={departamento} onChange={(e) => setDepartamento(e.target.value)} />
+              <input
+                className="border p-2 rounded w-full"
+                value={departamento}
+                onChange={(e) => setDepartamento(e.target.value)}
+              />
             </label>
 
             <label className="block">
               <span className="text-sm text-gray-600">Email</span>
-              <input type="email" className="border p-2 rounded w-full" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <input
+                type="email"
+                className="border p-2 rounded w-full"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </label>
 
             <div className="flex gap-3">
-              <button onClick={() => setStep(2)} className="px-4 py-2 rounded border">Volver</button>
-              <button onClick={continuarDatos} className="px-4 py-2 rounded bg-blue-600 text-white">Continuar</button>
+              <button onClick={() => setStep(2)} className="px-4 py-2 rounded border">
+                Volver
+              </button>
+              <button onClick={continuarDatos} className="px-4 py-2 rounded bg-blue-600 text-white">
+                Continuar
+              </button>
             </div>
           </div>
         )}
@@ -255,16 +269,22 @@ const AreasReservaSystem: React.FC = () => {
                   <MapPin className="w-4 h-4" /> Área común del condominio
                 </div>
                 <div className="mt-2">Fecha: {fecha}</div>
-                <div>Horario: {horaInicio} — {horaFin || addOneHour(horaInicio)}</div>
+                <div>
+                  Horario: {horaInicio} — {horaFin || addOneHour(horaInicio)}
+                </div>
               </div>
               <div className="rounded border p-3">
                 <div className="font-medium mb-2">Total</div>
-                <div className="text-3xl font-bold">${selectedArea.precio ?? 100} <span className="text-base">USD</span></div>
+                <div className="text-3xl font-bold">
+                  ${selectedArea.precio.toFixed(2)} <span className="text-base">USD</span>
+                </div>
               </div>
             </div>
 
             <div className="flex gap-3">
-              <button onClick={() => setStep(3)} className="px-4 py-2 rounded border">Volver</button>
+              <button onClick={() => setStep(3)} className="px-4 py-2 rounded border">
+                Volver
+              </button>
               <button
                 onClick={pagar}
                 disabled={pagando}
