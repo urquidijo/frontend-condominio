@@ -40,18 +40,23 @@ const AreasReservaSystem: React.FC = () => {
   const [pagando, setPagando] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const data = await listarAreas();
-        setAreas(data);
-      } catch (e) {
-        console.error(e);
-        
-      } finally {
-        setLoadingAreas(false);
-      }
-    })();
-  }, []);
+  (async () => {
+    try {
+      const data = await listarAreas(); // CommonArea[]
+      const mapped: Area[] = data.map(a => ({
+        id: a.id,
+        nombre: a.nombre,
+        estado: a.estado,
+        precio: a.precio ? Number(a.precio) : undefined, // ← string → number
+      }));
+      setAreas(mapped);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingAreas(false);
+    }
+  })();
+}, []);
 
   const selectedArea = useMemo(
     () => areas.find(a => a.id === selectedAreaId) || null,
@@ -86,14 +91,13 @@ const AreasReservaSystem: React.FC = () => {
       });
 
       // 2) Monto (si aún no tienes precio en DB, usa un map por ID)
-      const price = selectedArea.precio ?? 100;
+
 
       // 3) Crear sesión de Checkout
       const session = await crearCheckoutSession({
-        reservation_id: reserva.id,
-        amount: price,
-        currency: "usd",
-      });
+  reservation_id: reserva.id,
+});
+
 
       // 4) Redirigir
       const { error } = await stripe.redirectToCheckout({ sessionId: session.sessionId });
