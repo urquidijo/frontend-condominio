@@ -93,30 +93,10 @@ export default function Sidebar({
         label: "Gestión Propiedades",
         icon: Home,
         children: [
-          {
-            path: "/areas",
-            label: "Áreas Comunes",
-            icon: MapPin,
-            permission: "view_areas",
-          },
-          {
-            path: "/reservas",
-            label: "Mis Reservas",
-            icon: Calendar,
-            permission: "view_reservas",
-          },
-          {
-            path: "/properties",
-            label: "Propiedades",
-            icon: Calendar,
-            permission: "view_properties",
-          },
-          {
-            path: "/reportes-uso",
-            label: "Reportes de Uso",
-            icon: FileText,
-            permission: "view_reportes_uso",
-          },
+          { path: "/areas", label: "Áreas Comunes", icon: MapPin, permission: "view_areas" },
+          { path: "/reservas", label: "Mis Reservas", icon: Calendar, permission: "view_reservas" },
+          { path: "/properties", label: "Propiedades", icon: Calendar, permission: "view_properties" },
+          { path: "/reportes-uso", label: "Reportes de Uso", icon: FileText, permission: "view_reportes_uso" },
         ],
       },
       {

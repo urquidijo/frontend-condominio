@@ -24,11 +24,19 @@ const toHHMMSS = (t?: string) => {
   return `${h.padStart(2, "0")}:${m.padStart(2, "0")}:${s.padStart(2, "0")}`;
 };
 
+// ===== Money helper
+const formatMoney = (v?: string | number | null, moneda = "Bs") => {
+  if (v === undefined || v === null || v === "") return `${moneda} 0.00`;
+  const n = Number(v);
+  if (!Number.isFinite(n)) return `${moneda} 0.00`;
+  return `${moneda} ${n.toFixed(2)}`;
+};
+
 // ===== Helpers de rol (lee localStorage.role)
 const readRole = (): string => {
   try {
     const raw = localStorage.getItem("role") ?? "";
-    return raw.replace(/^"|"$/g, ""); // por si viene con comillas
+    return raw.replace(/^"|"$/g, "");
   } catch {
     return "";
   }
@@ -55,6 +63,7 @@ type AreaFormData = {
   estado: CommonArea["estado"];
   horario_apertura: string; // HH:MM
   horario_cierre: string;   // HH:MM
+  precio?: string;          // <- NUEVO campo del form
 };
 
 export default function Areas() {
@@ -88,6 +97,7 @@ export default function Areas() {
       estado: "DISPONIBLE",
       horario_apertura: "08:00",
       horario_cierre: "18:00",
+      precio: "", // <- NUEVO default
     },
   });
   const watchedApertura = watch("horario_apertura");
@@ -121,6 +131,7 @@ export default function Areas() {
       estado: "DISPONIBLE",
       horario_apertura: "08:00",
       horario_cierre: "18:00",
+      precio: "", // <- NUEVO
     });
     setShowModal(true);
   };
@@ -137,6 +148,7 @@ export default function Areas() {
       estado: area.estado,
       horario_apertura: toHHMM(area.horario_apertura),
       horario_cierre: toHHMM(area.horario_cierre),
+      precio: area.precio ?? "", // <- NUEVO
     });
     setShowModal(true);
   };
@@ -153,6 +165,8 @@ export default function Areas() {
       ...data,
       horario_apertura: toHHMMSS(data.horario_apertura),
       horario_cierre: toHHMMSS(data.horario_cierre),
+      // precio via string; si tu backend lo define como DecimalField, está OK
+      precio: data.precio === "" ? "0.00" : data.precio, // puedes dejarlo undefined si prefieres
     };
 
     try {
@@ -256,9 +270,14 @@ export default function Areas() {
                   </span>
                 </div>
 
-                <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                <p className="text-sm text-gray-600 mb-3 line-clamp-2">
                   {area.descripcion || "Sin descripción"}
                 </p>
+
+                {/* NUEVO: Precio visible */}
+                <div className="mb-4 text-sm font-medium text-gray-900">
+                  Precio: <span className="font-semibold">{formatMoney(area.precio)}</span>
+                </div>
 
                 <div className="space-y-2 mb-4">
                   <div className="flex items-center text-sm text-gray-600">
@@ -417,6 +436,20 @@ export default function Areas() {
                 />
                 {errors.horario_cierre && <p className="text-red-500 text-sm mt-1">{errors.horario_cierre.message}</p>}
               </div>
+            </div>
+
+            {/* NUEVO: Precio del área */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Precio</label>
+              <input
+                type="number"
+                step="0.01"
+                inputMode="decimal"
+                placeholder="0.00"
+                {...register("precio")}
+                className="w-full border border-gray-300 text-gray-900 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              <p className="text-xs text-gray-500 mt-1">Monto base para esta área (por uso u hora, según tu política).</p>
             </div>
 
             {/* Validación de horarios */}

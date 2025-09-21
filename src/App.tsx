@@ -21,6 +21,10 @@ import { Elements } from "@stripe/react-stripe-js";
 import ReportesMantenimiento from "./pages/ReportesMantenimiento";
 import TareasDeMantenimiento from "./pages/TareasDeMantenimiento";
 import Roles from "./pages/Roles";
+import MisReservas from "./pages/MisReservas";
+import ConfigPagos from "./pages/ConfigPagos";
+import ConsultaPagos from "./pages/ConsultaPagos";
+import ReportesPagos from "./pages/ReportesPagos";
 
 const stripePromise = loadStripe(
   "pk_test_51S8ObuRqPjz5OdlnY6NTIP8VgPFbFXjRL6jyvgMAMn2TMCjrlhoiWVjSZvYb50bA6GFHKTvURrR8QEhNcZzjOOnW00pdTYIEgz"
@@ -123,11 +127,23 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Layout>
+                  <MisReservas />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+            <Route
+            path="/reservas/nueva"
+            element={
+              <ProtectedRoute>
+                <Layout>
                   <AreasReservaSystem />
                 </Layout>
               </ProtectedRoute>
             }
           />
+
 
             <Route
   path="/reportes-uso"
@@ -172,6 +188,43 @@ export default function App() {
     </ProtectedRoute>
   }
 />
+
+
+<Route
+  path="/reportes/pagos"
+  element={
+    <ProtectedRoute>
+      <Layout>
+        < ReportesPagos/>
+      </Layout>
+    </ProtectedRoute>
+  }
+/>
+
+
+<Route
+  path="/pagos/configuracion"
+  element={
+    <ProtectedRoute>
+      <Layout>
+        <ConfigPagos />
+      </Layout>
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/pagos"
+  element={
+    <ProtectedRoute>
+      <Layout>
+        <ConsultaPagos />
+      </Layout>
+    </ProtectedRoute>
+  }
+/>
+
+
 
           {/* Catch-all */}
           <Route path="*" element={<Navigate to="/login" />} />
