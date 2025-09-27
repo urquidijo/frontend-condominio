@@ -100,6 +100,8 @@ export default function Sidebar({
           { path: "/pagos", label: "pagos", icon: Calendar, permission: "view_properties" },
           { path: "/pagos/configuracion", label: "pagos-configuracion", icon: FileText, permission: "view_reportes_uso" },
           { path: "/reportes/pagos", label: "pagos-reportes", icon: FileText, permission: "view_reportes_uso" },
+          { path: "/reservas/nueva", label: "nuevas-reservas", icon: FileText, permission: "view_reportes_uso" },//icon change
+          { path: "/indicadores", label: "Indicadores", icon: FileText, permission: "view_reportes_uso" },
         ],
       },
       {

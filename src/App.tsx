@@ -25,6 +25,7 @@ import MisReservas from "./pages/MisReservas";
 import ConfigPagos from "./pages/ConfigPagos";
 import ConsultaPagos from "./pages/ConsultaPagos";
 import ReportesPagos from "./pages/ReportesPagos";
+import FinanceDashboard from "./pages/FinanceDashboard";
 
 const stripePromise = loadStripe(
   "pk_test_51S8ObuRqPjz5OdlnY6NTIP8VgPFbFXjRL6jyvgMAMn2TMCjrlhoiWVjSZvYb50bA6GFHKTvURrR8QEhNcZzjOOnW00pdTYIEgz"
@@ -133,7 +134,7 @@ export default function App() {
             }
           />
 
-            <Route
+          <Route
             path="/reservas/nueva"
             element={
               <ProtectedRoute>
@@ -144,87 +145,92 @@ export default function App() {
             }
           />
 
+          <Route
+            path="/reportes-uso"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ReportesUsoInstalaciones />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
 
-            <Route
-  path="/reportes-uso"
-  element={
-    <ProtectedRoute>
-      <Layout>
-        <ReportesUsoInstalaciones />
-      </Layout>
-    </ProtectedRoute>
-  }
-/>
+          <Route
+            path="/mantenimiento/tareas"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <TareasDeMantenimiento />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
 
-<Route
-  path="/mantenimiento/tareas"
-  element={
-    <ProtectedRoute>
-      <Layout>
-        <TareasDeMantenimiento />
-      </Layout>
-    </ProtectedRoute>
-  }
-/>
+          <Route
+            path="/mantenimiento/reportes"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ReportesMantenimiento />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
 
-<Route
-  path="/mantenimiento/reportes"
-  element={
-    <ProtectedRoute>
-      <Layout>
-        <ReportesMantenimiento />
-      </Layout>
-    </ProtectedRoute>
-  }
-/>
+          <Route
+            path="/roles"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Roles />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
 
-<Route
-  path="/roles"
-  element={
-    <ProtectedRoute>
-      <Layout>
-        <Roles />
-      </Layout>
-    </ProtectedRoute>
-  }
-/>
+          <Route
+            path="/reportes/pagos"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ReportesPagos />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
 
+          <Route
+            path="/pagos/configuracion"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ConfigPagos />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
 
-<Route
-  path="/reportes/pagos"
-  element={
-    <ProtectedRoute>
-      <Layout>
-        < ReportesPagos/>
-      </Layout>
-    </ProtectedRoute>
-  }
-/>
-
-
-<Route
-  path="/pagos/configuracion"
-  element={
-    <ProtectedRoute>
-      <Layout>
-        <ConfigPagos />
-      </Layout>
-    </ProtectedRoute>
-  }
-/>
-
-<Route
-  path="/pagos"
-  element={
-    <ProtectedRoute>
-      <Layout>
-        <ConsultaPagos />
-      </Layout>
-    </ProtectedRoute>
-  }
-/>
-
-
+          <Route
+            path="/pagos"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ConsultaPagos />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/indicadores"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <FinanceDashboard />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
 
           {/* Catch-all */}
           <Route path="*" element={<Navigate to="/login" />} />
