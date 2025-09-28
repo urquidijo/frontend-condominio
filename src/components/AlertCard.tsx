@@ -1,5 +1,5 @@
 // frontend/src/components/AlertCard.tsx
-import React from "react";
+
 import  {type AlertDTO } from "../api/ai";
 
 function formatDate(iso: string) {
