@@ -72,3 +72,13 @@ export async function getUserPermissions(id: number) {
   // Devuelve un array de codenames; si tu backend envía otra forma, adapta aquí
   return Array.isArray(data) ? data : (data?.results ?? []);
 }
+
+
+
+export const addPlateToUser = async (userId: number, plateNumber: string) => {
+  const { data } = await api.post(`/ai/plates/create/`, {
+    user_id: userId,
+    plate_number: plateNumber,
+  });
+  return data;
+};

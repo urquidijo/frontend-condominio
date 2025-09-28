@@ -58,3 +58,14 @@ export async function aiFaceRevoke(userId: number) {
   const { data } = await api.post("/ai/face/revoke/", { user_id: userId });
   return data;
 }
+
+
+// src/api/ai.ts (o donde lo tengas)
+export async function detectPlate(file: File): Promise<{ ok: boolean; plate?: string }> {
+  const fd = new FormData();
+  fd.append("file", file); // 👈 el backend espera "file"
+  const { data } = await api.post("/ai/plates/detect/", fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}

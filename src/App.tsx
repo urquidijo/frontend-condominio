@@ -26,6 +26,7 @@ import ConfigPagos from "./pages/ConfigPagos";
 import ConsultaPagos from "./pages/ConsultaPagos";
 import ReportesPagos from "./pages/ReportesPagos";
 import FinanceDashboard from "./pages/FinanceDashboard";
+import Plates from "./pages/Plates";
 
 const stripePromise = loadStripe(
   "pk_test_51S8ObuRqPjz5OdlnY6NTIP8VgPFbFXjRL6jyvgMAMn2TMCjrlhoiWVjSZvYb50bA6GFHKTvURrR8QEhNcZzjOOnW00pdTYIEgz"
@@ -95,6 +96,18 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <Notices />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+
+          <Route
+            path="/plates"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Plates  />
                 </Layout>
               </ProtectedRoute>
             }
