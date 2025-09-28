@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { login } from "../api/auth";
 import { registrarBitacora } from "../api/bitacora";
 import FaceCapture from "../components/FaceCapture";
-import { aiFaceLogin, type FaceLoginResponse } from "../api/ai";
+import { aiFaceLogin } from "../api/ai";
 import { getUserById, getUserPermissions } from "../api/users";
 
 interface LoginFormData {
