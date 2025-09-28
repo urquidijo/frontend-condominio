@@ -128,7 +128,9 @@ export default function Sidebar({
         key: "gestionar-reportes",
         label: "Gestionar Reportes",
         icon: FileText,
-        children: [{ path: "/plates", label: "Placas", icon: MapPin, permission: "view_areas" },],
+        children: [{ path: "/plates", label: "Placas", icon: MapPin, permission: "view_areas" },
+                    { path: "/iareportes", label: "iareportes", icon: MapPin, permission: "view_areas" }
+        ],
       },
       {
         key: "gestionar-seguridad",

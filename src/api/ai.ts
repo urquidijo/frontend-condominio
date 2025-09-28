@@ -69,3 +69,72 @@ export async function detectPlate(file: File): Promise<{ ok: boolean; plate?: st
   });
   return data;
 }
+
+export type AlertType = "dog_loose" | "vehicle_seen" | "bad_parking" | "dog_waste";
+
+export interface AlertDTO {
+  id: number;
+  type: AlertType;
+  type_label: string;
+  camera_id: string | null;
+  s3_video_key: string;
+  s3_image_key: string | null;
+  image_url: string | null;       // viene del serializer
+  timestamp_ms: number;
+  confidence: number;
+  extra: Record<string, unknown>;
+  created_at: string;             // ISO
+}
+
+export async function fetchAlerts(): Promise<AlertDTO[]> {
+  const { data } = await api.get<AlertDTO[]>("/ai/alerts/");
+  return data;
+}
+
+
+
+
+export interface AlertEvent {
+  id: number;
+  type: AlertType;
+  type_label: string;
+  camera_id: string | null;
+  s3_video_key: string;
+  s3_image_key: string | null;
+  image_url: string | null;
+  timestamp_ms: number;
+  confidence: number;
+  extra: Record<string, any>;
+  created_at: string;
+}
+
+export interface UploadResponse {
+  ok: boolean;
+  video_key: string;
+  events: AlertEvent[];
+}
+
+export async function uploadAndProcessVideo(
+  file: File,
+  cameraId: string,
+  onProgress?: (p: number) => void
+): Promise<UploadResponse> {
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("camera_id", cameraId);
+
+  const res = await api.post<UploadResponse>(
+    "/ai/video/upload-and-process/",
+    fd,
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+      onUploadProgress: (e) => {
+        if (onProgress && e.total) {
+          onProgress(Math.round((e.loaded * 100) / e.total));
+        }
+      },
+    }
+  );
+
+  return res.data;
+}

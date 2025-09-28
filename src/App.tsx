@@ -7,6 +7,7 @@ import Notices from "./pages/Notices";
 import Dashboard from "./pages/Dashboard";
 import Areas from "./pages/Areas";
 import Bitacora from "./pages/Bitacora";
+import Alerts from './pages/Alerts'
 
 // Componentes
 import Layout from "./components/Layout"; // << usa el Layout con sidebar responsive
@@ -14,6 +15,7 @@ import { hasPermission } from "./hooks/usePermissions";
 import Properties from "./pages/Properties";
 import AreasReservaSystem from "./pages/AreasReservaSystem";
 import ReportesUsoInstalaciones from "./pages/ReportesUsoInstalaciones";
+
 
 // Stripe
 import { loadStripe } from "@stripe/stripe-js";
@@ -96,6 +98,17 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <Notices />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+                    <Route
+            path="/iareportes"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Alerts />
                 </Layout>
               </ProtectedRoute>
             }
