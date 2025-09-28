@@ -57,3 +57,18 @@ export const deleteUser = async (id: number): Promise<void> => {
 export const assignRole = async (userId: number, roleId: number | null) => {
   await api.post(`users/${userId}/assign_role/`, { role_id: roleId });
 };
+
+
+
+export async function getUserById(id: number) {
+  // Ajusta la URL si tu endpoint es diferente (p. ej. /auth/me/)
+  const { data } = await api.get(`/users/${id}/`);
+  return data; // se espera { id, email, first_name, last_name, role: { name }, ... }
+}
+
+export async function getUserPermissions(id: number) {
+  // Ajusta la URL si tu endpoint es diferente
+  const { data } = await api.get(`/users/${id}/permissions/`);
+  // Devuelve un array de codenames; si tu backend envía otra forma, adapta aquí
+  return Array.isArray(data) ? data : (data?.results ?? []);
+}

@@ -4,13 +4,16 @@ import {
   createUser,
   deleteUser,
   assignRole,
-  // 👇 Asegúrate de exportar esto desde ../api/users (ver ejemplo más abajo)
   updateUser,
   type User,
   type CreateUserPayload,
 } from "../api/users";
 import { getRoles, type Role } from "../api/roles";
 import Modal from "react-modal";
+
+// 👇 NUEVO
+import FaceCapture from "../components/FaceCapture";
+import { aiFaceEnroll } from "../api/ai";
 
 Modal.setAppElement("#root");
 
@@ -44,6 +47,13 @@ const Users = () => {
     password: "",
     role_id: null,
   });
+
+  // 👇 NUEVO: estados para enrolamiento facial post-crear
+  const [enrollOpen, setEnrollOpen] = useState(false);
+  const [enrollUserId, setEnrollUserId] = useState<number | null>(null);
+  const [enrollBusy, setEnrollBusy] = useState(false);
+  const [enrollMsg, setEnrollMsg] = useState<string | null>(null);
+  const [enrollNow, setEnrollNow] = useState(true); // “Registrar rostro al guardar”
 
   useEffect(() => {
     fetchUsers();
@@ -88,7 +98,6 @@ const Users = () => {
       first_name: u.first_name ?? "",
       last_name: u.last_name ?? "",
       email: u.email ?? "",
-      // 👇 en edición no usamos password
       password: "",
       role_id: u.role?.id ?? null,
     });
@@ -100,12 +109,36 @@ const Users = () => {
     setOpen(false);
   };
 
+  // 👇 helper: intentar obtener el ID recién creado (si createUser no lo devuelve)
+  const resolveCreatedUserId = async (createdMaybe: any, email: string) => {
+    if (createdMaybe && typeof createdMaybe.id === "number") return createdMaybe.id as number;
+    // fallback: refrescamos y buscamos por email
+    const list = await getUsers();
+    const found = (list ?? []).find((u) => u.email === email);
+    return found?.id ?? null;
+  };
+
   const handleCreateUser = async () => {
     setLoading(true);
     try {
-      await createUser(form);
+      // 1) crear
+      const created = await createUser(form);
+      // 2) refrescar listado
       await fetchUsers();
-      closeModal();
+      // 3) cerrar modal de datos
+      setOpen(false);
+
+      // 4) enrolamiento facial si está activado
+      if (enrollNow) {
+        const newId = await resolveCreatedUserId(created, form.email);
+        if (newId) {
+          setEnrollUserId(newId);
+          setEnrollMsg(null);
+          setEnrollOpen(true); // abre cámara
+        } else {
+          setEnrollMsg("Usuario creado, pero no pude obtener el ID para enrolar rostro.");
+        }
+      }
     } catch (err) {
       console.error("Error creando usuario:", err);
       alert("No se pudo crear el usuario.");
@@ -118,15 +151,12 @@ const Users = () => {
     if (!activeUser) return;
     setLoading(true);
     try {
-      // 1) Actualizamos datos básicos
       await updateUser(activeUser.id, {
         first_name: form.first_name,
         last_name: form.last_name,
         email: form.email,
-        // contraseña NO se envía en edición
       });
 
-      // 2) Si cambió el rol, lo asignamos (si tu backend lo permite también en updateUser, puedes omitir esto)
       await assignRole(activeUser.id, form.role_id);
 
       await fetchUsers();
@@ -151,6 +181,28 @@ const Users = () => {
       alert("No se pudo eliminar el usuario.");
     } finally {
       setDeleteLoading(false);
+    }
+  };
+
+  // 👇 NUEVO: cuando se toma la foto, enviamos a enrolar
+  const handleEnrollCapture = async (blob: Blob) => {
+    if (!enrollUserId) {
+      setEnrollMsg("No hay usuario para enrolar.");
+      setEnrollOpen(false);
+      return;
+    }
+    setEnrollBusy(true);
+    setEnrollMsg(null);
+    try {
+      await aiFaceEnroll(enrollUserId, blob);
+      setEnrollMsg("Rostro enrolado correctamente.");
+      await fetchUsers();
+    } catch (e: any) {
+      const msg = e?.response?.data?.detail || "Error al enrolar el rostro.";
+      setEnrollMsg(msg);
+    } finally {
+      setEnrollBusy(false);
+      setEnrollOpen(false);
     }
   };
 
@@ -219,7 +271,6 @@ const Users = () => {
               className="w-full border border-gray-300 text-gray-900 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
 
-            {/* 👇 Solo en modo CREATE mostramos contraseña */}
             {mode === "create" && (
               <input
                 placeholder="Contraseña"
@@ -247,6 +298,19 @@ const Users = () => {
                 </option>
               ))}
             </select>
+
+            {/* NUEVO: switch para activar el enrolamiento post-crear */}
+            {mode === "create" && (
+              <label className="mt-2 flex items-center gap-3 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  checked={enrollNow}
+                  onChange={(e) => setEnrollNow(e.target.checked)}
+                />
+                Registrar rostro al guardar
+              </label>
+            )}
 
             <div className="flex flex-col sm:flex-row gap-3 mt-2 sm:mt-6">
               <button
@@ -384,6 +448,21 @@ const Users = () => {
           </div>
         </div>
       </div>
+
+      {/* NUEVO: Cámara para enrolamiento post-creación */}
+      <FaceCapture
+        open={enrollOpen}
+        onClose={() => setEnrollOpen(false)}
+        onCapture={handleEnrollCapture}
+        title={enrollBusy ? "Procesando..." : "Capturar rostro para enrolamiento"}
+      />
+
+      {/* Mensaje flotante (opcional) */}
+      {enrollMsg && (
+        <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-lg border bg-white px-4 py-2 text-sm shadow">
+          {enrollMsg}
+        </div>
+      )}
     </div>
   );
 };
