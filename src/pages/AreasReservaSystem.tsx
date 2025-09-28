@@ -1,15 +1,24 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, type JSX } from "react";
 import { useStripe } from "@stripe/react-stripe-js";
-import { Check, Clock, Calendar, MapPin, CreditCard } from "lucide-react";
+import {
+  Check,
+  MapPin,
+  CreditCard,
+  Building2,
+  Droplets,
+  Volleyball,
+  PartyPopper,
+  Dumbbell,
+  Info,
+} from "lucide-react";
 import { crearReserva, listarAreas } from "../api/commons";
 import { crearCheckoutSession } from "../api/payments";
 
-/** ViewModel local: precio como número */
 type AreaVM = {
   id: number;
   nombre: string;
   estado: "DISPONIBLE" | "MANTENIMIENTO" | "CERRADO";
-  precio: number; // numérico para UI
+  precio: number;
 };
 
 function addOneHour(hhmm: string) {
@@ -21,6 +30,17 @@ function addOneHour(hhmm: string) {
   const mm = String(d.getMinutes()).padStart(2, "0");
   return `${hh}:${mm}`;
 }
+
+const iconMap: Record<string, JSX.Element> = {
+  Piscina: <Droplets className="w-12 h-12 text-sky-600" />,
+  "Cancha de tenis": <Volleyball className="w-12 h-12 text-green-600" />,
+  cancha: <Volleyball className="w-12 h-12 text-emerald-600" />,
+  Gimnasio: <Dumbbell className="w-12 h-12 text-gray-700" />,
+  "Salón de eventos": <PartyPopper className="w-12 h-12 text-pink-600" />,
+};
+
+const getIcon = (nombre: string) =>
+  iconMap[nombre] || <Building2 className="w-12 h-12 text-indigo-500" />;
 
 const AreasReservaSystem: React.FC = () => {
   const stripe = useStripe();
@@ -43,7 +63,7 @@ const AreasReservaSystem: React.FC = () => {
   useEffect(() => {
     (async () => {
       try {
-        const data: any[] = await listarAreas(); // viene con precio:string
+        const data: any[] = await listarAreas();
         const vm: AreaVM[] = (data || []).map((a) => ({
           id: a.id,
           nombre: a.nombre,
@@ -64,9 +84,10 @@ const AreasReservaSystem: React.FC = () => {
     [areas, selectedAreaId]
   );
 
-  // Mensaje “success/canceled”
-  const success = new URLSearchParams(window.location.search).get("success") === "true";
-  const canceled = new URLSearchParams(window.location.search).get("canceled") === "true";
+  const success =
+    new URLSearchParams(window.location.search).get("success") === "true";
+  const canceled =
+    new URLSearchParams(window.location.search).get("canceled") === "true";
 
   const continuarFechaHora = () => {
     if (!fecha || !horaInicio) return;
@@ -83,215 +104,274 @@ const AreasReservaSystem: React.FC = () => {
     if (!stripe || !selectedArea) return;
     setPagando(true);
     try {
-      // 1) Crear la reserva (el backend guardará el precio real)
       const reserva = await crearReserva({
         area: selectedArea.id,
-        fecha_reserva: fecha,
-        hora_inicio: horaInicio,
-        hora_fin: horaFin || addOneHour(horaInicio),
+        fecha_reserva: fecha, // input type=date ya da YYYY-MM-DD
+        hora_inicio: `${horaInicio}:00`, // asegurar HH:mm:ss
+        hora_fin: `${horaFin || addOneHour(horaInicio)}:00`,
       });
 
-      // 2) Crear sesión de Checkout SOLO con reservation_id
       const session = await crearCheckoutSession({
         reservation_id: reserva.id,
       });
-
-      // 3) Redirigir a Stripe
-      const { error } = await stripe.redirectToCheckout({ sessionId: session.sessionId });
+      const { error } = await stripe.redirectToCheckout({
+        sessionId: session.sessionId,
+      });
       if (error) alert(error.message || "Error al redirigir a Stripe");
     } catch (e: any) {
-      console.error(e);
-      const msg = e?.response?.data?.detail || e?.response?.data?.error || e?.message || "Error";
-      alert(msg);
+      const detail = e?.response?.data;
+      console.error("Error en crearReserva:", detail || e);
+
+      // si viene en __all__, mostrarlo bonito
+      if (detail?.__all__) {
+        alert(detail.__all__[0]);
+      } else if (detail?.detail) {
+        alert(detail.detail);
+      } else {
+        alert(e?.message || "Error al crear reserva");
+      }
     } finally {
       setPagando(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="container mx-auto px-4 py-8 max-w-5xl">
-        <h1 className="text-2xl font-bold mb-6">Reservar áreas comunes</h1>
+    <div className="min-h-screen p-6">
+      <div className="mx-auto max-w-3xl">
+        <h1 className="mb-8 text-3xl font-bold text-gray-800">
+          Reservar áreas comunes
+        </h1>
+
+        {/* Stepper de bolitas */}
+        <div className="mb-10 flex items-center justify-between">
+          {[1, 2, 3, 4].map((s, i) => (
+            <div key={s} className="flex flex-1 items-center">
+              <div
+                className={`flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-semibold
+                ${
+                  step >= s
+                    ? "border-blue-600 bg-blue-600 text-white"
+                    : "border-gray-300 bg-white text-gray-500"
+                }`}
+              >
+                {s}
+              </div>
+              {i < 3 && (
+                <div
+                  className={`h-1 flex-1 ${
+                    step > s ? "bg-blue-600" : "bg-gray-200"
+                  }`}
+                />
+              )}
+            </div>
+          ))}
+        </div>
 
         {success && (
-          <div className="mb-4 rounded-lg bg-green-50 border border-green-200 p-3 flex items-center gap-2">
-            <Check className="text-green-600 w-5 h-5" />
+          <div className="mb-6 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-4 text-green-700">
+            <Check className="h-5 w-5" />
             <span>
-              ¡Pago realizado! Tu reserva está aprobada y figura como <b>Pagada</b>.
+              ¡Pago realizado! Tu reserva está aprobada y figura como{" "}
+              <b>Pagada</b>.
             </span>
           </div>
         )}
         {canceled && (
-          <div className="mb-4 rounded-lg bg-yellow-50 border border-yellow-200 p-3">
-            El pago fue cancelado. Podés intentarlo nuevamente desde “Mis Reservas”.
+          <div className="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-yellow-700">
+            El pago fue cancelado. Podés intentarlo nuevamente desde “Mis
+            Reservas”.
           </div>
         )}
 
-        {/* Paso 1: elegir área */}
+        {/* Paso 1 */}
         {step === 1 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-6">
             {loadingAreas ? (
               <div>Cargando áreas…</div>
             ) : (
               areas.map((area) => (
-                <button
+                <div
                   key={area.id}
-                  onClick={() => {
-                    if (area.estado !== "DISPONIBLE") return;
-                    setSelectedAreaId(area.id);
-                    setStep(2);
-                  }}
-                  disabled={area.estado !== "DISPONIBLE"}
-                  className={`p-5 rounded-xl shadow bg-white border text-left hover:shadow-md transition
-                    ${area.estado !== "DISPONIBLE" ? "opacity-50 cursor-not-allowed" : ""}`}
+                  className="rounded-2xl border bg-white p-8 shadow-lg hover:shadow-xl transition"
                 >
-                  <div className="text-4xl mb-3">🏢</div>
-                  <div className="font-semibold">{area.nombre}</div>
-                  <div className="text-sm text-gray-600 flex items-center gap-1 mt-1">
-                    <CreditCard className="w-4 h-4" /> ${area.precio.toFixed(2)} USD
+                  <div className="flex items-center gap-4">
+                    {getIcon(area.nombre)}
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold">{area.nombre}</h3>
+                      <p className="mt-1 text-sm text-gray-600">
+                        Estado:{" "}
+                        <span className="font-medium">
+                          {area.estado === "DISPONIBLE"
+                            ? "Disponible"
+                            : area.estado}
+                        </span>
+                      </p>
+                      <p className="mt-1 flex items-center gap-1 text-sm text-gray-600">
+                        <CreditCard className="h-4 w-4" /> $
+                        {area.precio.toFixed(2)} USD
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (area.estado !== "DISPONIBLE") return;
+                        setSelectedAreaId(area.id);
+                        setStep(2);
+                      }}
+                      disabled={area.estado !== "DISPONIBLE"}
+                      className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      Reservar
+                    </button>
                   </div>
-                  <div className="mt-2 text-xs uppercase tracking-wide">
-                    {area.estado === "DISPONIBLE" ? "Disponible" : area.estado}
+                  <div className="mt-4 flex gap-4 text-sm text-gray-500">
+                    <button className="flex items-center gap-1 hover:text-blue-600">
+                      <Info className="h-4 w-4" /> Ver detalles
+                    </button>
+                    <button className="flex items-center gap-1 hover:text-blue-600">
+                      <Info className="h-4 w-4" /> Políticas de uso
+                    </button>
                   </div>
-                </button>
+                </div>
               ))
             )}
           </div>
         )}
 
-        {/* Paso 2: fecha y horario */}
+        {/* Paso 2 */}
         {step === 2 && selectedArea && (
-          <div className="bg-white rounded-xl shadow p-6 space-y-4">
-            <div className="text-lg font-semibold mb-1">Elegí fecha y horario</div>
-
-            <label className="block">
-              <span className="text-sm text-gray-600 flex items-center gap-2">
-                <Calendar className="w-4 h-4" /> Fecha
-              </span>
+          <div className="rounded-2xl bg-white p-8 shadow-lg">
+            <h2 className="mb-4 text-xl font-semibold text-gray-700">
+              Selecciona fecha y horario
+            </h2>
+            <label className="mb-3 block text-sm font-medium text-gray-600">
+              Fecha
               <input
                 type="date"
                 value={fecha}
                 onChange={(e) => setFecha(e.target.value)}
-                className="border p-2 rounded w-full"
+                className="mt-1 w-full rounded-lg border px-3 py-2"
               />
             </label>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <label className="block">
-                <span className="text-sm text-gray-600 flex items-center gap-2">
-                  <Clock className="w-4 h-4" /> Hora de inicio
-                </span>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <label className="block text-sm font-medium text-gray-600">
+                Hora de inicio
                 <input
                   type="time"
                   value={horaInicio}
                   onChange={(e) => setHoraInicio(e.target.value)}
-                  className="border p-2 rounded w-full"
+                  className="mt-1 w-full rounded-lg border px-3 py-2"
                 />
               </label>
-
-              <label className="block">
-                <span className="text-sm text-gray-600 flex items-center gap-2">
-                  <Clock className="w-4 h-4" /> Hora de fin
-                </span>
+              <label className="block text-sm font-medium text-gray-600">
+                Hora de fin
                 <input
                   type="time"
                   value={horaFin}
                   onChange={(e) => setHoraFin(e.target.value)}
-                  className="border p-2 rounded w-full"
+                  className="mt-1 w-full rounded-lg border px-3 py-2"
                 />
               </label>
             </div>
-
-            <div className="flex gap-3">
-              <button onClick={() => setStep(1)} className="px-4 py-2 rounded border">
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => setStep(1)}
+                className="rounded-lg border px-4 py-2"
+              >
                 Volver
               </button>
-              <button onClick={continuarFechaHora} className="px-4 py-2 rounded bg-blue-600 text-white">
+              <button
+                onClick={continuarFechaHora}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-white"
+              >
                 Continuar
               </button>
             </div>
           </div>
         )}
 
-        {/* Paso 3: datos del residente */}
+        {/* Paso 3 */}
         {step === 3 && (
-          <div className="bg-white rounded-xl shadow p-6 space-y-3">
-            <div className="text-lg font-semibold mb-1">Tus datos</div>
-
-            <label className="block">
-              <span className="text-sm text-gray-600">Nombre</span>
+          <div className="rounded-2xl bg-white p-8 shadow-lg">
+            <h2 className="mb-4 text-xl font-semibold text-gray-700">
+              Ingresa tus datos
+            </h2>
+            <div className="space-y-4">
               <input
-                className="border p-2 rounded w-full"
+                placeholder="Nombre"
+                className="w-full rounded-lg border px-3 py-2"
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
               />
-            </label>
-
-            <label className="block">
-              <span className="text-sm text-gray-600">Departamento</span>
               <input
-                className="border p-2 rounded w-full"
+                placeholder="Departamento"
+                className="w-full rounded-lg border px-3 py-2"
                 value={departamento}
                 onChange={(e) => setDepartamento(e.target.value)}
               />
-            </label>
-
-            <label className="block">
-              <span className="text-sm text-gray-600">Email</span>
               <input
                 type="email"
-                className="border p-2 rounded w-full"
+                placeholder="Email"
+                className="w-full rounded-lg border px-3 py-2"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
-            </label>
-
-            <div className="flex gap-3">
-              <button onClick={() => setStep(2)} className="px-4 py-2 rounded border">
+            </div>
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => setStep(2)}
+                className="rounded-lg border px-4 py-2"
+              >
                 Volver
               </button>
-              <button onClick={continuarDatos} className="px-4 py-2 rounded bg-blue-600 text-white">
+              <button
+                onClick={continuarDatos}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-white"
+              >
                 Continuar
               </button>
             </div>
           </div>
         )}
 
-        {/* Paso 4: resumen y pagar */}
+        {/* Paso 4 */}
         {step === 4 && selectedArea && (
-          <div className="bg-white rounded-xl shadow p-6 space-y-4">
-            <div className="text-lg font-semibold">Resumen</div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div className="rounded border p-3">
-                <div className="font-medium mb-1">{selectedArea.nombre}</div>
-                <div className="text-gray-600 flex items-center gap-1">
-                  <MapPin className="w-4 h-4" /> Área común del condominio
-                </div>
-                <div className="mt-2">Fecha: {fecha}</div>
-                <div>
+          <div className="rounded-2xl bg-white p-8 shadow-lg">
+            <h2 className="mb-4 text-xl font-semibold text-gray-700">
+              Confirmar y pagar
+            </h2>
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div className="rounded-lg border p-4">
+                <h3 className="font-medium">{selectedArea.nombre}</h3>
+                <p className="text-sm text-gray-600">
+                  <MapPin className="mr-1 inline h-4 w-4" />
+                  Área común del condominio
+                </p>
+                <p className="mt-2 text-sm">Fecha: {fecha}</p>
+                <p className="text-sm">
                   Horario: {horaInicio} — {horaFin || addOneHour(horaInicio)}
-                </div>
+                </p>
               </div>
-              <div className="rounded border p-3">
-                <div className="font-medium mb-2">Total</div>
-                <div className="text-3xl font-bold">
-                  ${selectedArea.precio.toFixed(2)} <span className="text-base">USD</span>
-                </div>
+              <div className="rounded-lg border p-4 text-center">
+                <p className="mb-2 font-medium">Total</p>
+                <p className="text-3xl font-bold">
+                  ${selectedArea.precio.toFixed(2)} USD
+                </p>
               </div>
             </div>
-
-            <div className="flex gap-3">
-              <button onClick={() => setStep(3)} className="px-4 py-2 rounded border">
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => setStep(3)}
+                className="rounded-lg border px-4 py-2"
+              >
                 Volver
               </button>
               <button
                 onClick={pagar}
                 disabled={pagando}
-                className="px-6 py-2 rounded bg-emerald-600 text-white hover:bg-emerald-700 flex items-center gap-2"
+                className="flex items-center gap-2 rounded-lg bg-emerald-600 px-6 py-2 text-white hover:bg-emerald-700 disabled:opacity-50"
               >
-                <CreditCard className="w-4 h-4" />
-                {pagando ? "Procesando..." : "Pagar con Stripe"}
+                <CreditCard className="h-4 w-4" />
+                {pagando ? "Procesando…" : "Pagar con Stripe"}
               </button>
             </div>
           </div>

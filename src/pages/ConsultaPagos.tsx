@@ -90,7 +90,6 @@ const isOverdue = (due?: string | null) => {
   try {
     const d = new Date(`${due}T00:00:00`);
     const today = new Date();
-    // normaliza a 00:00
     const t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     return d < t;
   } catch {
@@ -102,12 +101,9 @@ const isOverdue = (due?: string | null) => {
  * Componente
  * ─────────────────────────────── */
 const ConsultaPagos: React.FC = () => {
-  // catálogos
   const [configs, setConfigs] = useState<PriceConfigDTO[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
-  // datos
   const [charges, setCharges] = useState<UICharge[]>([]);
-  // ui
   const [showAssignForm, setShowAssignForm] = useState(false);
   const [filterPropId, setFilterPropId] = useState<number>(0);
   const [loading, setLoading] = useState(false);
@@ -119,9 +115,7 @@ const ConsultaPagos: React.FC = () => {
     assignAll: false,
   });
 
-  /* ───────────────────────────────
-   * Cargar datos iniciales
-   * ─────────────────────────────── */
+  /* cargar datos iniciales */
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -163,21 +157,13 @@ const ConsultaPagos: React.FC = () => {
     })();
   }, []);
 
-  /* ───────────────────────────────
-   * Derivados
-   * ─────────────────────────────── */
-  // const cfgSelected = useMemo(
-  //   () => configs.find((c) => c.id === form.price_config_id) || null,
-  //   [configs, form.price_config_id]
-  // );
-
+  /* derivados */
   const filteredCharges = useMemo(
     () => (filterPropId ? charges.filter((c) => c.property_id === filterPropId) : charges),
     [charges, filterPropId]
   );
 
   const visualStatus = (c: UICharge) => {
-    // Si está pendiente y ya venció, muéstralo como vencido
     if (c.status === "PENDING" && isOverdue(c.fecha_pago)) return "overdue" as const;
     if (c.status === "PAID") return "paid" as const;
     if (c.status === "CANCELED") return "canceled" as const;
@@ -195,9 +181,7 @@ const ConsultaPagos: React.FC = () => {
     return map[s];
   };
 
-  /* ───────────────────────────────
-   * Acciones formulario
-   * ─────────────────────────────── */
+  /* acciones formulario */
   const toggleAll = () => {
     setForm((f) => {
       const next = !f.assignAll;
@@ -240,7 +224,6 @@ const ConsultaPagos: React.FC = () => {
         )
       );
 
-      // re-map a UICharge con catálogos actuales
       const cfgMap = new Map(configs.map((c) => [c.id, c]));
       const propMap = new Map(properties.map((p) => [p.id, p]));
 
@@ -287,39 +270,37 @@ const ConsultaPagos: React.FC = () => {
     }
   };
 
-  /* ───────────────────────────────
-   * Render
-   * ─────────────────────────────── */
+  /* render */
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
         {/* header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">Gestión de Cargos</h1>
-          <p className="text-gray-600">Asigna cargos (expensas, multas, servicios) y consulta su estado</p>
+        <div className="text-center mb-10">
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Gestión de Cargos</h1>
+          <p className="text-gray-500 text-sm">Asigna cargos (expensas, multas, servicios) y consulta su estado</p>
         </div>
 
         {/* actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <div className="text-center md:text-left">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div>
             <button
               onClick={() => setShowAssignForm(true)}
-              className="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl inline-flex items-center gap-3 text-lg font-semibold"
+              className="w-full md:w-auto px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2 font-medium shadow-sm"
             >
-              <Plus className="w-6 h-6" />
+              <Plus className="w-5 h-5" />
               Nueva Asignación
             </button>
           </div>
 
-          <div className="bg-white rounded-xl shadow-lg p-4">
-            <h2 className="text-lg font-semibold text-gray-800 mb-2 flex items-center gap-2">
-              <Home className="w-5 h-5 text-blue-600" />
+          <div className="border rounded-lg p-4 shadow-sm bg-white">
+            <h2 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+              <Home className="w-4 h-4 text-blue-600" />
               Filtrar por Propiedad
             </h2>
             <select
               value={filterPropId}
               onChange={(e) => setFilterPropId(Number(e.target.value))}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
             >
               <option value={0}>Todas</option>
               {properties.map((p) => (
@@ -332,81 +313,77 @@ const ConsultaPagos: React.FC = () => {
         </div>
 
         {/* lista */}
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <h3 className="text-xl font-semibold text-gray-800 mb-6">Cargos</h3>
+        <div className="border rounded-lg shadow-sm bg-white p-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Cargos</h3>
 
           {loading && <p className="text-sm text-gray-500 mb-4">Cargando…</p>}
 
           <div className="space-y-4">
             {filteredCharges.map((c) => {
               const pill = statusPill(c);
-
-              // Etiquetas de fecha
               const dueText = c.fecha_pago ? `Vence: ${formatDate(c.fecha_pago)}` : "Sin vencimiento";
               const issuedText = `Emitido: ${formatDate(c.issued_at)}`;
               const paidText = c.paid_at ? `Pagado: ${formatDate(c.paid_at)}` : "Pagado";
 
               return (
-                <div key={c.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="font-semibold text-gray-900">{c.property_label}</span>
-                        <span
-                          className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 ${pill.cls}`}
-                        >
-                          {pill.icon}
-                          {pill.txt}
-                        </span>
-                      </div>
-
-                      {/* Tipo de cargo */}
-                      <p className="text-gray-700 text-sm mb-1">{c.price_type}</p>
-
-                      {/* Fechas clave */}
-                      <div className="flex flex-wrap gap-3 text-sm text-gray-600">
-                        <span className="inline-flex items-center gap-1">
-                          <Calendar className="w-4 h-4 text-gray-400" />
-                          {issuedText}
-                        </span>
-                        <span
-                          className={`inline-flex items-center gap-1 ${
-                            visualStatus(c) === "overdue" ? "text-red-600 font-medium" : ""
-                          }`}
-                          title="Fecha de vencimiento"
-                        >
-                          <Calendar className="w-4 h-4 text-gray-400" />
-                          {dueText}
-                        </span>
-                        {c.status === "PAID" && (
-                          <span className="inline-flex items-center gap-1">
-                            <Calendar className="w-4 h-4 text-gray-400" />
-                            {paidText}
-                          </span>
-                        )}
-                      </div>
+                <div
+                  key={c.id}
+                  className="border border-gray-200 rounded-lg p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:shadow-md transition"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="font-medium text-gray-800">{c.property_label}</span>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1 ${pill.cls}`}
+                      >
+                        {pill.icon}
+                        {pill.txt}
+                      </span>
                     </div>
-
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-gray-800">
-                        {c.amount_num.toFixed(2)} {c.currency || "USD"}
-                      </p>
-                      {visualStatus(c) !== "paid" && (
-                        <button
-                          onClick={() => payCharge(c)}
-                          className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
-                        >
-                          <CreditCard className="w-4 h-4" />
-                          Pagar
-                        </button>
+                    <p className="text-sm text-gray-600 mb-1">{c.price_type}</p>
+                    <div className="flex flex-wrap gap-3 text-xs text-gray-500">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3 text-gray-400" />
+                        {issuedText}
+                      </span>
+                      <span
+                        className={`flex items-center gap-1 ${
+                          visualStatus(c) === "overdue" ? "text-red-600 font-medium" : ""
+                        }`}
+                      >
+                        <Calendar className="w-3 h-3 text-gray-400" />
+                        {dueText}
+                      </span>
+                      {c.status === "PAID" && (
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3 text-gray-400" />
+                          {paidText}
+                        </span>
                       )}
                     </div>
+                  </div>
+
+                  <div className="text-right">
+                    <p className="text-lg font-semibold text-gray-800">
+                      {c.amount_num.toFixed(2)} {c.currency || "USD"}
+                    </p>
+                    {visualStatus(c) !== "paid" && (
+                      <button
+                        onClick={() => payCharge(c)}
+                        className="mt-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition flex items-center gap-2 shadow-sm"
+                      >
+                        <CreditCard className="w-4 h-4" />
+                        Pagar
+                      </button>
+                    )}
                   </div>
                 </div>
               );
             })}
 
-            {filteredCharges.length === 0 && <p className="text-sm text-gray-500">No hay cargos para mostrar.</p>}
+            {filteredCharges.length === 0 && (
+              <p className="text-sm text-gray-500">No hay cargos para mostrar.</p>
+            )}
           </div>
         </div>
 
@@ -419,13 +396,13 @@ const ConsultaPagos: React.FC = () => {
                   <Plus className="w-6 h-6 text-blue-600" />
                   Nueva Asignación de Cargos
                 </h2>
-                <button onClick={resetForm} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                <button onClick={resetForm} className="p-2 hover:bg-gray-100 rounded-lg transition">
                   <X className="w-6 h-6 text-gray-400" />
                 </button>
               </div>
 
               <div className="p-6 space-y-6">
-                {/* paso 1: tipo (PriceConfig) */}
+                {/* tipo de cargo */}
                 <div>
                   <h3 className="text-lg font-semibold text-gray-800 mb-4">1. Seleccionar Tipo de Cargo</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -435,8 +412,8 @@ const ConsultaPagos: React.FC = () => {
                         <button
                           key={c.id}
                           onClick={() => setForm((f) => ({ ...f, price_config_id: c.id }))}
-                          className={`p-4 rounded-xl border-2 transition-all hover:shadow-lg ${
-                            selected ? "border-blue-500 bg-blue-50 shadow-md" : "border-gray-200 hover:border-gray-300"
+                          className={`p-4 rounded-xl border-2 transition hover:shadow-sm ${
+                            selected ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-gray-300"
                           }`}
                         >
                           <div className="text-sm font-medium text-gray-800 mb-1 truncate">{c.type}</div>
@@ -450,7 +427,7 @@ const ConsultaPagos: React.FC = () => {
                   </div>
                 </div>
 
-                {/* paso 2: fecha de pago (vencimiento, opcional) */}
+                {/* fecha de pago */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de vencimiento</label>
@@ -458,12 +435,12 @@ const ConsultaPagos: React.FC = () => {
                       type="date"
                       value={form.fecha_pago}
                       onChange={(e) => setForm((f) => ({ ...f, fecha_pago: e.target.value }))}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                 </div>
 
-                {/* paso 3: propiedades */}
+                {/* propiedades */}
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-800">2. Seleccionar Propiedades</h3>
@@ -504,14 +481,14 @@ const ConsultaPagos: React.FC = () => {
                   <button
                     onClick={submitAssign}
                     disabled={!form.price_config_id || form.selectedProps.length === 0 || loading}
-                    className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 font-semibold"
+                    className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition flex items-center justify-center gap-2 font-semibold"
                   >
                     <CheckCircle className="w-5 h-5" />
                     Crear Asignación ({form.selectedProps.length} casas)
                   </button>
                   <button
                     onClick={resetForm}
-                    className="px-6 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                    className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
                   >
                     Cancelar
                   </button>

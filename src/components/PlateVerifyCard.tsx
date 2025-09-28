@@ -1,23 +1,24 @@
 import React, { useState } from "react";
 import PlateCaptureModal from "./PlateCaptureModal";
+import { Camera } from "lucide-react";
 
 const PlateVerifyCard: React.FC = () => {
   const [openCam, setOpenCam] = useState(false);
 
   return (
-    <div className="rounded-2xl border bg-white p-5 shadow-sm">
-      <h3 className="mb-3 text-lg font-semibold">Verificar placa</h3>
+    <div className="rounded-2xl border bg-white p-6 shadow-sm">
+      <div className="mb-4 flex items-center gap-2">
+        <Camera className="h-6 w-6 text-emerald-600" />
+        <h3 className="text-lg font-semibold">Verificar placa</h3>
+      </div>
       <button
         onClick={() => setOpenCam(true)}
-        className="rounded-xl bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700"
+        className="w-full rounded-xl bg-emerald-600 px-4 py-2 text-white transition hover:bg-emerald-700"
       >
         Usar cámara
       </button>
 
-      <PlateCaptureModal
-        open={openCam}
-        onClose={() => setOpenCam(false)}
-      />
+      <PlateCaptureModal open={openCam} onClose={() => setOpenCam(false)} />
     </div>
   );
 };

@@ -4,16 +4,29 @@ import {
   Home,
   Users,
   Bell,
-  MapPin,
+  LayoutGrid,
   Calendar,
+  CalendarPlus,
+  CreditCard,
+  Receipt,
+  Settings,
+  Shield,
+  ShieldCheck,
+  FileText,
+  History,
+  BarChart3,
+  TrendingUp,
+  ListChecks,
+  Wrench,
+  ClipboardList,
+  Car,
+  Cpu,
+  UserCheck,
   LogOut,
   ChevronLeft,
   ChevronRight,
   User as UserIcon,
-  FileText,
-  ShieldCheck,
   X,
-  Wrench,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { hasPermission } from "../hooks/usePermissions";
@@ -24,7 +37,7 @@ type SubItem = {
   path: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
-  permission?: string | null; // code del permiso o null si siempre visible
+  permission?: string | null;
 };
 
 type Section = {
@@ -49,7 +62,7 @@ export default function Sidebar({
   const location = useLocation();
   const isCollapsed = variant === "mobile" ? false : collapsed;
 
-  // Definición estática de secciones con los CODES de permisos
+  // Definición estática de secciones con íconos corregidos
   const sections: Section[] = useMemo(
     () => [
       {
@@ -57,24 +70,9 @@ export default function Sidebar({
         label: "Gestión Usuario",
         icon: Users,
         children: [
-          {
-            path: "/users",
-            label: "Usuarios",
-            icon: Users,
-            permission: "view_users",
-          },
-          {
-            path: "/roles",
-            label: "Roles",
-            icon: ShieldCheck,
-            permission: "view_users",
-          },
-          {
-            path: "/bitacora",
-            label: "Bitacora",
-            icon: FileText,
-            permission: "view_users",
-          },
+          { path: "/users", label: "Usuarios", icon: Users, permission: "view_users" },
+          { path: "/roles", label: "Roles", icon: ShieldCheck, permission: "view_users" },
+          { path: "/bitacora", label: "Bitácora", icon: History, permission: "view_users" },
         ],
       },
       {
@@ -82,12 +80,7 @@ export default function Sidebar({
         label: "Gestionar Avisos",
         icon: Bell,
         children: [
-          {
-            path: "/notices",
-            label: "Avisos",
-            icon: Bell,
-            permission: "view_notices",
-          },
+          { path: "/notices", label: "Avisos", icon: Bell, permission: "view_notices" },
         ],
       },
       {
@@ -95,15 +88,15 @@ export default function Sidebar({
         label: "Gestión Propiedades",
         icon: Home,
         children: [
-          { path: "/areas", label: "Áreas Comunes", icon: MapPin, permission: "view_areas" },
+          { path: "/areas", label: "Áreas Comunes", icon: LayoutGrid, permission: "view_areas" },
           { path: "/reservas", label: "Mis Reservas", icon: Calendar, permission: "view_reservas" },
-          { path: "/properties", label: "Propiedades", icon: Calendar, permission: "view_properties" },
-          { path: "/reportes-uso", label: "Reportes de Uso", icon: FileText, permission: "view_reportes_uso" },     
-          { path: "/pagos", label: "pagos", icon: Calendar, permission: "view_properties" },
-          { path: "/pagos/configuracion", label: "pagos-configuracion", icon: FileText, permission: "view_reportes_uso" },
-          { path: "/reportes/pagos", label: "pagos-reportes", icon: FileText, permission: "view_reportes_uso" },
-          { path: "/reservas/nueva", label: "nuevas-reservas", icon: FileText, permission: "view_reportes_uso" },
-          { path: "/indicadores", label: "Indicadores", icon: FileText, permission: "view_reportes_uso" },
+          { path: "/properties", label: "Propiedades", icon: Home, permission: "view_properties" },
+          { path: "/reportes-uso", label: "Reportes de Uso", icon: BarChart3, permission: "view_reportes_uso" },
+          { path: "/pagos", label: "Pagos", icon: CreditCard, permission: "view_properties" },
+          { path: "/pagos/configuracion", label: "Pagos Configuración", icon: Settings, permission: "view_reportes_uso" },
+          { path: "/reportes/pagos", label: "Pagos Reportes", icon: Receipt, permission: "view_reportes_uso" },
+          { path: "/reservas/nueva", label: "Nuevas Reservas", icon: CalendarPlus, permission: "view_reportes_uso" },
+          { path: "/indicadores", label: "Indicadores", icon: TrendingUp, permission: "view_reportes_uso" },
         ],
       },
       {
@@ -111,18 +104,8 @@ export default function Sidebar({
         label: "Gestión de Mantenimiento",
         icon: Wrench,
         children: [
-          {
-            path: "/mantenimiento/tareas",
-            label: "Tareas",
-            icon: FileText,
-            permission: "view_mantenimiento_tareas",
-          },
-          {
-            path: "/mantenimiento/reportes",
-            label: "Reportes",
-            icon: ShieldCheck,
-            permission: "view_mantenimiento_reportes",
-          },
+          { path: "/mantenimiento/tareas", label: "Tareas", icon: ListChecks, permission: "view_mantenimiento_tareas" },
+          { path: "/mantenimiento/reportes", label: "Reportes", icon: ClipboardList, permission: "view_mantenimiento_reportes" },
         ],
       },
       {
@@ -130,15 +113,15 @@ export default function Sidebar({
         label: "Gestionar Reportes",
         icon: FileText,
         children: [
-          { path: "/plates", label: "Placas", icon: MapPin, permission: "view_areas" },
-          { path: "/iareportes", label: "iareportes", icon: MapPin, permission: "view_areas" },
-          { path: "/reportevisitante", label: "reportevisitante", icon: MapPin, permission: "view_areas" },
+          { path: "/plates", label: "Placas", icon: Car, permission: "view_areas" },
+          { path: "/iareportes", label: "IA Reportes", icon: Cpu, permission: "view_areas" },
+          { path: "/reportevisitante", label: "Reporte Visitante", icon: UserCheck, permission: "view_areas" },
         ],
       },
       {
         key: "gestionar-seguridad",
         label: "Gestionar Seguridad",
-        icon: ShieldCheck,
+        icon: Shield,
         children: [],
       },
     ],
@@ -157,7 +140,7 @@ export default function Sidebar({
     setOpenSections((p) => ({ ...p, [key]: !p[key] }));
   const isActive = (path: string) => location.pathname === path;
 
-  // Info del usuario (solo para mostrar en el header)
+  // Info del usuario
   const [userInfo] = useState(() => {
     try {
       const raw = localStorage.getItem("user");
@@ -176,14 +159,13 @@ export default function Sidebar({
     }
   });
 
-  // 👇 Actualizado: marca logout en BD si el rol es Visitante y luego limpia sesión
+  // Logout con bitácora y visitante
   const handleLogout = async () => {
     const userIdStr = localStorage.getItem("userId");
     const roleName = (localStorage.getItem("role") || "").toLowerCase();
     const userId = userIdStr ? parseInt(userIdStr, 10) : undefined;
 
     try {
-      // 1) si es visitante -> registra logout_at en ai_visitor_session
       if (userId && (roleName === "visitante" || roleName === "visitor")) {
         try {
           await visitorLogout(userId);
@@ -191,22 +173,11 @@ export default function Sidebar({
           console.warn("visitorLogout falló:", e);
         }
       }
-
-      // 2) bitácora como ya tenías
       if (userId) {
         await registrarBitacora(userId, "Cierre de sesión", "exitoso");
       }
     } finally {
-      // 3) limpiar todo
-      localStorage.removeItem("token");
-      localStorage.removeItem("access");
-      localStorage.removeItem("refresh");
-      localStorage.removeItem("permissions");
-      localStorage.removeItem("userId");
-      localStorage.removeItem("user");
-      localStorage.removeItem("role");
-
-      // 4) navegar y notificar
+      localStorage.clear();
       navigate("/login");
       onRequestClose?.();
       window.dispatchEvent(new Event("permissions-changed"));
@@ -304,18 +275,16 @@ export default function Sidebar({
             />
           </button>
 
-          {/* Secciones con permisos */}
+          {/* Secciones */}
           <div className="space-y-2">
             {sections.map((section) => {
               const SectionIcon = section.icon as any;
               const children = section.children ?? [];
 
-              // Filtra hijos por permiso (si no define permission, siempre visible)
               const visibleChildren = children.filter(
                 (c) => !c.permission || hasPermission(c.permission)
               );
 
-              // Si la sección tiene hijos pero ninguno visible, ocultamos la sección
               if (children.length > 0 && visibleChildren.length === 0) return null;
 
               return (
