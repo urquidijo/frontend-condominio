@@ -1,3 +1,4 @@
+// src/components/Sidebar.tsx
 import { useMemo, useState } from "react";
 import {
   Home,
@@ -17,6 +18,7 @@ import {
 import { useNavigate, useLocation } from "react-router-dom";
 import { hasPermission } from "../hooks/usePermissions";
 import { registrarBitacora } from "../api/bitacora";
+import { visitorLogout } from "../api/ai"; // 👈 nuevo
 
 type SubItem = {
   path: string;
@@ -33,7 +35,7 @@ type Section = {
 };
 
 export default function Sidebar({
-  variant = "desktop",
+  variant = "mobile",
   collapsed = false,
   onToggleCollapsed,
   onRequestClose,
@@ -100,7 +102,7 @@ export default function Sidebar({
           { path: "/pagos", label: "pagos", icon: Calendar, permission: "view_properties" },
           { path: "/pagos/configuracion", label: "pagos-configuracion", icon: FileText, permission: "view_reportes_uso" },
           { path: "/reportes/pagos", label: "pagos-reportes", icon: FileText, permission: "view_reportes_uso" },
-          { path: "/reservas/nueva", label: "nuevas-reservas", icon: FileText, permission: "view_reportes_uso" },//icon change
+          { path: "/reservas/nueva", label: "nuevas-reservas", icon: FileText, permission: "view_reportes_uso" },
           { path: "/indicadores", label: "Indicadores", icon: FileText, permission: "view_reportes_uso" },
         ],
       },
@@ -123,13 +125,14 @@ export default function Sidebar({
           },
         ],
       },
-
       {
         key: "gestionar-reportes",
         label: "Gestionar Reportes",
         icon: FileText,
-        children: [{ path: "/plates", label: "Placas", icon: MapPin, permission: "view_areas" },
-                    { path: "/iareportes", label: "iareportes", icon: MapPin, permission: "view_areas" }
+        children: [
+          { path: "/plates", label: "Placas", icon: MapPin, permission: "view_areas" },
+          { path: "/iareportes", label: "iareportes", icon: MapPin, permission: "view_areas" },
+          { path: "/reportevisitante", label: "reportevisitante", icon: MapPin, permission: "view_areas" },
         ],
       },
       {
@@ -139,21 +142,16 @@ export default function Sidebar({
         children: [],
       },
     ],
-
     []
   );
 
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>(
-    () => {
-      const initial: Record<string, boolean> = {};
-      sections.forEach((s) => {
-        initial[s.key] = !!s.children?.some(
-          (c) => c.path === location.pathname
-        );
-      });
-      return initial;
-    }
-  );
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    sections.forEach((s) => {
+      initial[s.key] = !!s.children?.some((c) => c.path === location.pathname);
+    });
+    return initial;
+  });
 
   const toggleSection = (key: string) =>
     setOpenSections((p) => ({ ...p, [key]: !p[key] }));
@@ -178,22 +176,41 @@ export default function Sidebar({
     }
   });
 
+  // 👇 Actualizado: marca logout en BD si el rol es Visitante y luego limpia sesión
   const handleLogout = async () => {
-    const userId = localStorage.getItem("userId"); // viene como string o null
+    const userIdStr = localStorage.getItem("userId");
+    const roleName = (localStorage.getItem("role") || "").toLowerCase();
+    const userId = userIdStr ? parseInt(userIdStr, 10) : undefined;
 
-    if (userId) {
-      await registrarBitacora(parseInt(userId), "Cierre de sesión", "exitoso");
+    try {
+      // 1) si es visitante -> registra logout_at en ai_visitor_session
+      if (userId && (roleName === "visitante" || roleName === "visitor")) {
+        try {
+          await visitorLogout(userId);
+        } catch (e) {
+          console.warn("visitorLogout falló:", e);
+        }
+      }
+
+      // 2) bitácora como ya tenías
+      if (userId) {
+        await registrarBitacora(userId, "Cierre de sesión", "exitoso");
+      }
+    } finally {
+      // 3) limpiar todo
+      localStorage.removeItem("token");
+      localStorage.removeItem("access");
+      localStorage.removeItem("refresh");
+      localStorage.removeItem("permissions");
+      localStorage.removeItem("userId");
+      localStorage.removeItem("user");
+      localStorage.removeItem("role");
+
+      // 4) navegar y notificar
+      navigate("/login");
+      onRequestClose?.();
+      window.dispatchEvent(new Event("permissions-changed"));
     }
-    localStorage.removeItem("token");
-    localStorage.removeItem("refresh");
-    localStorage.removeItem("permissions"); // <-- único almacenamiento de permisos
-    localStorage.removeItem("userId");
-    localStorage.removeItem("user");
-    localStorage.removeItem("role");
-    navigate("/login");
-    onRequestClose?.();
-    // notificar a la UI (opcional si usas el hook con suscripción)
-    window.dispatchEvent(new Event("permissions-changed"));
   };
 
   return (
@@ -216,11 +233,7 @@ export default function Sidebar({
               className="p-2 hover:bg-gray-700 rounded-lg transition-colors duration-200 ml-auto hidden md:inline-flex"
               title={isCollapsed ? "Expandir sidebar" : "Contraer sidebar"}
             >
-              {isCollapsed ? (
-                <ChevronRight className="w-5 h-5" />
-              ) : (
-                <ChevronLeft className="w-5 h-5" />
-              )}
+              {isCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
             </button>
           ) : (
             <button
@@ -248,9 +261,7 @@ export default function Sidebar({
             {!isCollapsed && (
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{userInfo.name}</p>
-                <p className="text-xs text-gray-400 truncate">
-                  {userInfo.role}
-                </p>
+                <p className="text-xs text-gray-400 truncate">{userInfo.role}</p>
               </div>
             )}
           </div>
@@ -274,17 +285,13 @@ export default function Sidebar({
           >
             <Home
               className={`w-5 h-5 ${
-                isActive("/dashboard")
-                  ? "text-white"
-                  : "text-gray-300 group-hover:text-white"
+                isActive("/dashboard") ? "text-white" : "text-gray-300 group-hover:text-white"
               }`}
             />
             {!isCollapsed && (
               <span
                 className={`text-sm font-medium whitespace-nowrap truncate ${
-                  isActive("/dashboard")
-                    ? "text-white"
-                    : "text-gray-300 group-hover:text-white"
+                  isActive("/dashboard") ? "text-white" : "text-gray-300 group-hover:text-white"
                 }`}
               >
                 Inicio
@@ -309,19 +316,14 @@ export default function Sidebar({
               );
 
               // Si la sección tiene hijos pero ninguno visible, ocultamos la sección
-              if (children.length > 0 && visibleChildren.length === 0)
-                return null;
+              if (children.length > 0 && visibleChildren.length === 0) return null;
 
               return (
                 <div key={section.key} className="rounded-lg">
                   <button
-                    onClick={() =>
-                      children.length ? toggleSection(section.key) : undefined
-                    }
+                    onClick={() => (children.length ? toggleSection(section.key) : undefined)}
                     className={`w-full ${
-                      isCollapsed
-                        ? "justify-center flex"
-                        : "flex items-center space-x-3"
+                      isCollapsed ? "justify-center flex" : "flex items-center space-x-3"
                     } p-3 rounded-lg transition-colors duration-200 hover:bg-gray-700`}
                     title={section.label}
                   >
@@ -340,55 +342,47 @@ export default function Sidebar({
                     )}
                   </button>
 
-                  {children.length > 0 &&
-                    openSections[section.key] &&
-                    !isCollapsed && (
-                      <div className="mt-1">
-                        {visibleChildren.map((item) => {
-                          const ItemIcon = item.icon as any;
-                          const active = isActive(item.path);
-                          return (
-                            <button
-                              key={item.path}
-                              onClick={() => {
-                                navigate(item.path);
-                                onRequestClose?.();
-                              }}
-                              className={`w-full grid grid-cols-[20px_minmax(0,1fr)_10px] items-center gap-3
+                  {children.length > 0 && openSections[section.key] && !isCollapsed && (
+                    <div className="mt-1">
+                      {visibleChildren.map((item) => {
+                        const ItemIcon = item.icon as any;
+                        const active = isActive(item.path);
+                        return (
+                          <button
+                            key={item.path}
+                            onClick={() => {
+                              navigate(item.path);
+                              onRequestClose?.();
+                            }}
+                            className={`w-full grid grid-cols-[20px_minmax(0,1fr)_10px] items-center gap-3
                               pl-8 pr-3 py-2 rounded-md transition-all duration-200
                               ${
                                 active
                                   ? "bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg shadow-blue-500/25"
                                   : "hover:bg-gray-700"
                               }`}
-                              title={item.label}
+                            title={item.label}
+                          >
+                            <ItemIcon
+                              className={`w-4 h-4 ${active ? "text-white" : "text-gray-300 group-hover:text-white"}`}
+                            />
+                            <span
+                              className={`text-sm whitespace-nowrap truncate ${
+                                active ? "text-white" : "text-gray-300 group-hover:text-white"
+                              }`}
                             >
-                              <ItemIcon
-                                className={`w-4 h-4 ${
-                                  active
-                                    ? "text-white"
-                                    : "text-gray-300 group-hover:text-white"
-                                }`}
-                              />
-                              <span
-                                className={`text-sm whitespace-nowrap truncate ${
-                                  active
-                                    ? "text-white"
-                                    : "text-gray-300 group-hover:text-white"
-                                }`}
-                              >
-                                {item.label}
-                              </span>
-                              <span
-                                className={`justify-self-end w-2 h-2 rounded-full bg-white ${
-                                  active ? "opacity-100" : "opacity-0"
-                                }`}
-                              />
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
+                              {item.label}
+                            </span>
+                            <span
+                              className={`justify-self-end w-2 h-2 rounded-full bg-white ${
+                                active ? "opacity-100" : "opacity-0"
+                              }`}
+                            />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -406,9 +400,7 @@ export default function Sidebar({
           title="Cerrar Sesión"
         >
           <LogOut className="w-5 h-5" />
-          {!isCollapsed && (
-            <span className="text-sm font-medium">Cerrar Sesión</span>
-          )}
+          {!isCollapsed && <span className="text-sm font-medium">Cerrar Sesión</span>}
         </button>
       </div>
     </div>

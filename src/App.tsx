@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import Areas from "./pages/Areas";
 import Bitacora from "./pages/Bitacora";
 import Alerts from './pages/Alerts'
+import ReporteVisitante from './pages/ReporteVisitante'
 
 // Componentes
 import Layout from "./components/Layout"; // << usa el Layout con sidebar responsive
@@ -66,6 +67,17 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <Dashboard />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/reportevisitante"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ReporteVisitante />
                 </Layout>
               </ProtectedRoute>
             }

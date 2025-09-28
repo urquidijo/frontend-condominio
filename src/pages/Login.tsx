@@ -1,33 +1,45 @@
-// src/pages/Login.tsx
-import { useState } from "react";
-import { Eye, EyeOff, Mail, Lock, LogIn } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Eye, EyeOff, Mail, Lock, LogIn, Camera, UserPlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { login } from "../api/auth";
 import { registrarBitacora } from "../api/bitacora";
-import FaceCapture from "../components/FaceCapture";
-import { aiFaceLogin } from "../api/ai";
 import { getUserById, getUserPermissions } from "../api/users";
+import { aiFaceLogin, visitorLogin, visitorRegister } from "../api/ai";
+import FaceCapture from "../components/FaceCapture";
+import Webcam from "react-webcam";
 
+/* =================== Tipos =================== */
 interface LoginFormData {
   email: string;
   password: string;
 }
 
+/* =================== Componente =================== */
 const Login = () => {
   const navigate = useNavigate();
 
+  // Email/password
   const [formData, setFormData] = useState<LoginFormData>({ email: "", password: "" });
   const [errors, setErrors] = useState<Partial<LoginFormData>>({});
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginError, setLoginError] = useState<string>("");
 
-  // Facial
+  /* ====== Login con rostro (USUARIOS YA REGISTRADOS) ====== */
   const [faceOpen, setFaceOpen] = useState(false);
   const [faceMsg, setFaceMsg] = useState<string | null>(null);
   const [faceLoading, setFaceLoading] = useState(false);
 
-  /** Guarda TODO en localStorage de forma consistente para ambos flujos */
+  /* ====== Flujo VISITANTE (botón y modal aparte) ====== */
+  const [visitorOpen, setVisitorOpen] = useState(false);
+  const [visitorMsg, setVisitorMsg] = useState<string | null>(null);
+  const [visitorLoading, setVisitorLoading] = useState(false);
+  const [needRegister, setNeedRegister] = useState(false);
+  const [vFirst, setVFirst] = useState("");
+  const [vLast, setVLast] = useState("");
+  const camRef = useRef<Webcam>(null);
+
+  /* ===== Helpers de sesión (compatibles con tu app) ===== */
   const saveSession = (opts: {
     access?: string | null;
     refresh?: string | null;
@@ -36,10 +48,9 @@ const Login = () => {
     permissions?: string[] | null;
   }) => {
     const { access, refresh, userId, roleName, permissions } = opts;
-
     if (access) {
       localStorage.setItem("access", access);
-      localStorage.setItem("token", access); // tu UI a veces usa "token"
+      localStorage.setItem("token", access);
     }
     if (refresh) localStorage.setItem("refresh", refresh);
     if (userId != null) localStorage.setItem("userId", String(userId));
@@ -47,21 +58,16 @@ const Login = () => {
     if (permissions) localStorage.setItem("permissions", JSON.stringify(permissions));
   };
 
-  /** Obtiene role y permisos si el backend del login facial no los envía */
   const hydrateRoleAndPerms = async (userId: number) => {
     try {
-      const [u, perms] = await Promise.all([
-        getUserById(userId),
-        getUserPermissions(userId),
-      ]);
+      const [u, perms] = await Promise.all([getUserById(userId), getUserPermissions(userId)]);
       const roleName = u?.role?.name ?? null;
       const permissions = Array.isArray(perms) ? perms : null;
       saveSession({ roleName, permissions });
-    } catch {
-      // silencioso
-    }
+    } catch {}
   };
 
+  /* ===== Validación y handlers del login normal ===== */
   const validateForm = (): boolean => {
     const newErrors: Partial<LoginFormData> = {};
     if (!formData.email) newErrors.email = "El correo es obligatorio";
@@ -74,8 +80,8 @@ const Login = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    if (errors[name as keyof LoginFormData]) setErrors(prev => ({ ...prev, [name]: undefined }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (errors[name as keyof LoginFormData]) setErrors((prev) => ({ ...prev, [name]: undefined }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -87,80 +93,59 @@ const Login = () => {
 
     let resp: any;
     try {
-      // Se asume que login(email, pass) devuelve { access, refresh, user:{id,role{name}}, permissions? }
       resp = await login(formData.email, formData.password);
 
       const access = resp?.access ?? resp?.token ?? null;
       const refresh = resp?.refresh ?? null;
       const userId = resp?.user?.id ?? resp?.id ?? null;
-      const roleName =
-        resp?.user?.role?.name ??
-        resp?.role?.name ??
-        null;
+      const roleName = resp?.user?.role?.name ?? resp?.role?.name ?? null;
       const permissions = resp?.permissions ?? resp?.user?.permissions ?? null;
 
       saveSession({ access, refresh, userId, roleName, permissions });
-
-      try { await registrarBitacora(userId ?? undefined, "Inicio de sesión", "exitoso"); } catch {}
+      try {
+        await registrarBitacora(userId ?? undefined, "Inicio de sesión", "exitoso");
+      } catch {}
       navigate("/dashboard", { replace: true });
     } catch (error) {
-      try { await registrarBitacora(resp?.user?.id ?? resp?.id, "Inicio de sesión", "fallido"); } catch {}
+      try {
+        await registrarBitacora(resp?.user?.id ?? resp?.id, "Inicio de sesión", "fallido");
+      } catch {}
       setLoginError(error instanceof Error ? error.message : "Error de conexión. Intenta nuevamente.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  /* ====== Login con rostro (usuarios ya registrados) ====== */
   const onFaceCapture = async (blob: Blob) => {
     setFaceLoading(true);
     setFaceMsg(null);
-
     try {
       const res = await aiFaceLogin(blob);
 
       if (!("recognized" in res) || !res.recognized) {
-        setFaceMsg(("detail" in res && res.detail) ? res.detail : "No se reconoció tu rostro. Intenta de nuevo o usa tu contraseña.");
+        setFaceMsg(("detail" in res && res.detail) ? res.detail : "No se reconoció tu rostro. Intenta de nuevo.");
         return;
       }
 
-      // Normalizamos por si el backend varía las claves
       const access = res.access ?? null;
       const refresh = res.refresh ?? null;
       const userId = res.user?.id ?? res.user_id ?? null;
+      const roleName = res.user?.role?.name ?? (typeof res.role === "object" ? res.role?.name : (res as any).role) ?? null;
+      const permissions = res.user?.permissions ?? (res as any).permissions ?? null;
 
-      const roleName =
-        res.user?.role?.name ??
-        res.role?.name ??
-        null;
-
-      const permissions =
-        res.user?.permissions ??
-        res.permissions ??
-        null;
-
-      // Necesitamos access + userId para comportarnos igual que en login por correo
       if (access && userId != null) {
         saveSession({ access, refresh, userId, roleName, permissions });
-
-        // Si no vino rol/permisos, los traemos rápido
-        if (!roleName || !permissions) {
-          await hydrateRoleAndPerms(userId);
-        }
-
-        const name = res.user?.first_name ? ` ${res.user.first_name}` : "";
+        if (!roleName || !permissions) await hydrateRoleAndPerms(userId);
         const sim = Math.round(res.similarity ?? 0);
-        setFaceMsg(`Bienvenido${name}. Similaridad ${sim}%.`);
+        setFaceMsg(`Similaridad ${sim}%.`);
         navigate("/dashboard", { replace: true });
         return;
       }
 
-      // Si no hay tokens, no conviene avanzar
       if (!access) {
         const sim = Math.round(res.similarity ?? 0);
-        setFaceMsg(
-          `Rostro reconocido (ID ${userId ?? "?"}) con ${sim}%. ` +
-          `Configura el backend para devolver tokens (access/refresh) y rol/permisos.`
-        );
+        setFaceMsg(`Rostro reconocido (ID ${userId ?? "?"}) con ${sim}%. Configura backend para tokens.`);
         return;
       }
 
@@ -173,6 +158,92 @@ const Login = () => {
     }
   };
 
+  /* ====== Flujo VISITANTE (modal y registro inline) ====== */
+  const takePhotoBlob = async (): Promise<Blob> => {
+    const dataUrl = camRef.current?.getScreenshot();
+    if (!dataUrl) throw new Error("No se pudo capturar la imagen");
+    const res = await fetch(dataUrl);
+    return await res.blob();
+  };
+
+  const doVisitorLogin = async () => {
+    setVisitorLoading(true);
+    setVisitorMsg(null);
+    setNeedRegister(false);
+    try {
+      const blob = await takePhotoBlob();
+      const r = await visitorLogin(blob);
+
+      if (!r.ok) {
+        setVisitorMsg("No estás registrado como visitante. Completa tus datos para registrarte.");
+        setNeedRegister(true);
+        return;
+      }
+
+      // tokens, role y permissions
+      const access = r.access ?? (r as any).user?.access ?? null;
+      const refresh = r.refresh ?? null;
+      const userId = r.user_id!;
+      const roleName =
+        (typeof r.role === "string" ? r.role : r.role?.name) ??
+        (r as any).user?.role?.name ??
+        "Visitante";
+      const permissions = r.permissions ?? (r as any).user?.permissions ?? null;
+
+      saveSession({ access, refresh, userId, roleName, permissions });
+
+      setVisitorMsg(`Bienvenido ${roleName}. Similaridad: ${Math.round(r.similarity ?? 0)}%.`);
+      navigate("/dashboard", { replace: true });
+    } catch (e: any) {
+      const status = e?.response?.status;
+      if (status === 404 || status === 403) {
+        setNeedRegister(true);
+        setVisitorMsg("No estás registrado como visitante. Completa tus datos para registrarte.");
+      } else {
+        setVisitorMsg(e?.response?.data?.detail ?? "Error al intentar login de visitante.");
+      }
+    } finally {
+      setVisitorLoading(false);
+    }
+  };
+
+  const doVisitorRegister = async () => {
+    if (!vFirst.trim() || !vLast.trim()) {
+      setVisitorMsg("Completa nombre y apellido.");
+      return;
+    }
+    setVisitorLoading(true);
+    setVisitorMsg(null);
+    try {
+      const blob = await takePhotoBlob();
+      const r = await visitorRegister(vFirst.trim(), vLast.trim(), blob);
+      if (!r.ok) {
+        setVisitorMsg(r.detail ?? "No se pudo registrar. Inténtalo de nuevo.");
+        return;
+      }
+      setVisitorMsg("Registro exitoso. Intentando iniciar sesión…");
+      await doVisitorLogin();
+    } catch (e: any) {
+      setVisitorMsg(e?.response?.data?.detail ?? "Error registrando visitante.");
+    } finally {
+      setVisitorLoading(false);
+    }
+  };
+
+  const closeVisitor = () => {
+    if (visitorLoading) return;
+    setVisitorOpen(false);
+    setVisitorMsg(null);
+    setNeedRegister(false);
+    setVFirst("");
+    setVLast("");
+  };
+
+  useEffect(() => {
+    setVisitorMsg(null);
+  }, [needRegister]);
+
+  /* =================== UI =================== */
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
@@ -276,13 +347,30 @@ const Login = () => {
                 )}
               </button>
 
+              {/* Botón 1: rostro (usuarios) */}
               <button
                 type="button"
-                onClick={() => { setFaceMsg(null); setFaceOpen(true); }}
+                onClick={() => {
+                  setFaceMsg(null);
+                  setFaceOpen(true);
+                }}
                 disabled={faceLoading}
                 className="w-full flex justify-center items-center py-3 px-4 rounded-lg text-sm font-medium border border-blue-200 text-blue-700 hover:bg-blue-50 disabled:opacity-60"
               >
                 {faceLoading ? "Procesando…" : "Ingresar con rostro"}
+              </button>
+
+              {/* Botón 2: Visitantes */}
+              <button
+                type="button"
+                onClick={() => {
+                  setVisitorMsg(null);
+                  setVisitorOpen(true);
+                }}
+                disabled={visitorLoading}
+                className="w-full flex justify-center items-center py-3 px-4 rounded-lg text-sm font-medium border border-emerald-200 text-emerald-700 hover:bg-emerald-50 disabled:opacity-60 sm:col-span-2"
+              >
+                {visitorLoading ? "Procesando…" : "Ingresar como visitante"}
               </button>
             </div>
 
@@ -291,12 +379,73 @@ const Login = () => {
         </div>
       </div>
 
+      {/* ============== Modal: Login con rostro ============== */}
       <FaceCapture
         open={faceOpen}
         onClose={() => !faceLoading && setFaceOpen(false)}
         onCapture={onFaceCapture}
         title="Login con reconocimiento facial"
       />
+
+      {/* ============== Modal: Visitante ============== */}
+      {visitorOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">
+                {needRegister ? "Registrarse como visitante" : "Ingresar como visitante"}
+              </h3>
+              <button onClick={closeVisitor} className="text-gray-500 hover:text-gray-700 text-sm" disabled={visitorLoading}>
+                Cerrar
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="rounded-xl overflow-hidden bg-gray-100 aspect-video">
+                <Webcam ref={camRef} audio={false} screenshotFormat="image/jpeg" className="w-full h-full object-cover" />
+              </div>
+
+              {!needRegister ? (
+                <button
+                  onClick={doVisitorLogin}
+                  disabled={visitorLoading}
+                  className="w-full inline-flex items-center justify-center px-4 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60"
+                >
+                  <Camera className="h-4 w-4 mr-2" />
+                  {visitorLoading ? "Verificando…" : "Tomar foto e ingresar"}
+                </button>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <input
+                      value={vFirst}
+                      onChange={(e) => setVFirst(e.target.value)}
+                      placeholder="Nombre"
+                      className="border rounded-lg px-3 py-2"
+                    />
+                    <input
+                      value={vLast}
+                      onChange={(e) => setVLast(e.target.value)}
+                      placeholder="Apellido"
+                      className="border rounded-lg px-3 py-2"
+                    />
+                  </div>
+                  <button
+                    onClick={doVisitorRegister}
+                    disabled={visitorLoading}
+                    className="w-full inline-flex items-center justify-center px-4 py-3 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60"
+                  >
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    {visitorLoading ? "Registrando…" : "Registrarme y volver a intentar"}
+                  </button>
+                </>
+              )}
+
+              {visitorMsg && <p className="text-sm text-center text-gray-700">{visitorMsg}</p>}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
