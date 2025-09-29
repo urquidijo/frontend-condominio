@@ -44,7 +44,7 @@ type Section = {
   key: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
-  permission?: string | null;           // ⬅️ permiso a nivel sección
+  permission?: string | null; // ⬅️ permiso a nivel sección
   children?: SubItem[];
 };
 
@@ -72,17 +72,25 @@ export default function Sidebar({
         icon: Users,
         permission: "view_gestion_usuario",
         children: [
-          { path: "/users", label: "Usuarios", icon: Users, permission: "view_users" },
-          { path: "/roles", label: "Roles", icon: ShieldCheck, permission: "view_roles" },
-          { path: "/bitacora", label: "Bitácora", icon: History, permission: "view_bitacora" },
+          {
+            path: "/users",
+            label: "Usuarios",
+            icon: Users,
+            permission: "view_users",
+          },
+          {
+            path: "/roles",
+            label: "Roles",
+            icon: ShieldCheck,
+            permission: "view_roles",
+          },
+          {
+            path: "/bitacora",
+            label: "Bitácora",
+            icon: History,
+            permission: "view_bitacora",
+          },
         ],
-      },
-      {
-        key: "gestionar-avisos",
-        label: "Gestionar Avisos",
-        icon: Bell,
-        permission: "view_gestionar_avisos",
-        children: [{ path: "/notices", label: "Avisos", icon: Bell, permission: "view_notices" }],
       },
       {
         key: "gestion-propiedades",
@@ -90,15 +98,36 @@ export default function Sidebar({
         icon: Home,
         permission: "view_gestion_propiedades",
         children: [
-          { path: "/areas", label: "Áreas Comunes", icon: LayoutGrid, permission: "view_areas" },
-          { path: "/reservas", label: "Mis Reservas", icon: Calendar, permission: "view_reservas" },
-          { path: "/properties", label: "Propiedades", icon: Home, permission: "view_properties" },
-          { path: "/reportes-uso", label: "Reportes de Uso", icon: BarChart3, permission: "view_reportes_uso" },
-          { path: "/pagos", label: "Pagos", icon: CreditCard, permission: "view_pagos" },
-          { path: "/pagos/configuracion", label: "Pagos Configuración", icon: Settings, permission: "view_pagos_config" },
-          { path: "/reportes/pagos", label: "Pagos Reportes", icon: Receipt, permission: "view_pagos_reportes" },
-          { path: "/reservas/nueva", label: "Nuevas Reservas", icon: CalendarPlus, permission: "view_nuevas_reservas" },
-          { path: "/indicadores", label: "Indicadores", icon: TrendingUp, permission: "view_indicadores" },
+          {
+            path: "/areas",
+            label: "Áreas Comunes",
+            icon: LayoutGrid,
+            permission: "view_areas",
+          },
+          {
+            path: "/reservas",
+            label: "Mis Reservas",
+            icon: Calendar,
+            permission: "view_reservas",
+          },
+          {
+            path: "/properties",
+            label: "Propiedades",
+            icon: Home,
+            permission: "view_properties",
+          },
+          {
+            path: "/pagos",
+            label: "Pagos",
+            icon: CreditCard,
+            permission: "view_pagos",
+          },
+          {
+            path: "/reservas/nueva",
+            label: "Nuevas Reservas",
+            icon: CalendarPlus,
+            permission: "view_nuevas_reservas",
+          },
         ],
       },
       {
@@ -107,8 +136,24 @@ export default function Sidebar({
         icon: Wrench,
         permission: "view_gestion_mantenimiento",
         children: [
-          { path: "/mantenimiento/tareas", label: "Tareas", icon: ListChecks, permission: "view_mantenimiento_tareas" },
-          { path: "/mantenimiento/reportes", label: "Reportes", icon: ClipboardList, permission: "view_mantenimiento_reportes" },
+          {
+            path: "/mantenimiento/tareas",
+            label: "Tareas",
+            icon: ListChecks,
+            permission: "view_mantenimiento_tareas",
+          },
+          {
+            path: "/mantenimiento/reportes",
+            label: "Reportes",
+            icon: ClipboardList,
+            permission: "view_mantenimiento_reportes",
+          },
+          {
+            path: "/pagos/configuracion",
+            label: "Pagos Configuración",
+            icon: Settings,
+            permission: "view_pagos_config",
+          },
         ],
       },
       {
@@ -117,9 +162,30 @@ export default function Sidebar({
         icon: FileText,
         permission: "view_gestionar_reportes",
         children: [
-          { path: "/plates", label: "Placas", icon: Car, permission: "view_placas" },
-          { path: "/iareportes", label: "IA Reportes", icon: Cpu, permission: "view_ia_reportes" },
-          { path: "/reportevisitante", label: "Reporte Visitante", icon: UserCheck, permission: "view_reporte_visitante" },
+          {
+            path: "/reportes-uso",
+            label: "Reportes de Uso",
+            icon: BarChart3,
+            permission: "view_reportes_uso",
+          },
+          {
+            path: "/notices",
+            label: "Avisos",
+            icon: Bell,
+            permission: "view_notices",
+          },
+          {
+            path: "/indicadores",
+            label: "Indicadores",
+            icon: TrendingUp,
+            permission: "view_indicadores",
+          },
+          {
+            path: "/reportes/pagos",
+            label: "Pagos Reportes",
+            icon: Receipt,
+            permission: "view_pagos_reportes",
+          },
         ],
       },
       {
@@ -127,19 +193,42 @@ export default function Sidebar({
         label: "Gestionar Seguridad",
         icon: Shield,
         permission: "view_gestionar_seguridad",
-        children: [],
+        children: [
+          {
+            path: "/plates",
+            label: "Placas",
+            icon: Car,
+            permission: "view_placas",
+          },
+          {
+            path: "/iareportes",
+            label: "IA Reportes",
+            icon: Cpu,
+            permission: "view_ia_reportes",
+          },
+          {
+            path: "/reportevisitante",
+            label: "Reporte Visitante",
+            icon: UserCheck,
+            permission: "view_reporte_visitante",
+          },
+        ],
       },
     ],
     []
   );
 
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
-    const initial: Record<string, boolean> = {};
-    sections.forEach((s) => {
-      initial[s.key] = !!s.children?.some((c) => c.path === location.pathname);
-    });
-    return initial;
-  });
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(
+    () => {
+      const initial: Record<string, boolean> = {};
+      sections.forEach((s) => {
+        initial[s.key] = !!s.children?.some(
+          (c) => c.path === location.pathname
+        );
+      });
+      return initial;
+    }
+  );
 
   const toggleSection = (key: string) =>
     setOpenSections((p) => ({ ...p, [key]: !p[key] }));
@@ -211,7 +300,11 @@ export default function Sidebar({
               className="p-2 hover:bg-gray-700 rounded-lg transition-colors duration-200 ml-auto hidden md:inline-flex"
               title={isCollapsed ? "Expandir sidebar" : "Contraer sidebar"}
             >
-              {isCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+              {isCollapsed ? (
+                <ChevronRight className="w-5 h-5" />
+              ) : (
+                <ChevronLeft className="w-5 h-5" />
+              )}
             </button>
           ) : (
             <button
@@ -239,7 +332,9 @@ export default function Sidebar({
             {!isCollapsed && (
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{userInfo.name}</p>
-                <p className="text-xs text-gray-400 truncate">{userInfo.role}</p>
+                <p className="text-xs text-gray-400 truncate">
+                  {userInfo.role}
+                </p>
               </div>
             )}
           </div>
@@ -264,13 +359,17 @@ export default function Sidebar({
             >
               <Home
                 className={`w-5 h-5 ${
-                  isActive("/dashboard") ? "text-white" : "text-gray-300 group-hover:text-white"
+                  isActive("/dashboard")
+                    ? "text-white"
+                    : "text-gray-300 group-hover:text-white"
                 }`}
               />
               {!isCollapsed && (
                 <span
                   className={`text-sm font-medium whitespace-nowrap truncate ${
-                    isActive("/dashboard") ? "text-white" : "text-gray-300 group-hover:text-white"
+                    isActive("/dashboard")
+                      ? "text-white"
+                      : "text-gray-300 group-hover:text-white"
                   }`}
                 >
                   Inicio
@@ -296,17 +395,22 @@ export default function Sidebar({
 
               // Mostrar si: (tiene permiso a la sección) O (hay al menos un hijo visible)
               const canShowSection =
-                (section.permission ? hasPermission(section.permission) : false) ||
-                visibleChildren.length > 0;
+                (section.permission
+                  ? hasPermission(section.permission)
+                  : false) || visibleChildren.length > 0;
 
               if (!canShowSection) return null;
 
               return (
                 <div key={section.key} className="rounded-lg">
                   <button
-                    onClick={() => (children.length ? toggleSection(section.key) : undefined)}
+                    onClick={() =>
+                      children.length ? toggleSection(section.key) : undefined
+                    }
                     className={`w-full ${
-                      isCollapsed ? "justify-center flex" : "flex items-center space-x-3"
+                      isCollapsed
+                        ? "justify-center flex"
+                        : "flex items-center space-x-3"
                     } p-3 rounded-lg transition-colors duration-200 hover:bg-gray-700`}
                     title={section.label}
                   >
@@ -325,47 +429,55 @@ export default function Sidebar({
                     )}
                   </button>
 
-                  {children.length > 0 && openSections[section.key] && !isCollapsed && (
-                    <div className="mt-1">
-                      {visibleChildren.map((item) => {
-                        const ItemIcon = item.icon as any;
-                        const active = isActive(item.path);
-                        return (
-                          <button
-                            key={item.path}
-                            onClick={() => {
-                              navigate(item.path);
-                              onRequestClose?.();
-                            }}
-                            className={`w-full grid grid-cols-[20px_minmax(0,1fr)_10px] items-center gap-3
+                  {children.length > 0 &&
+                    openSections[section.key] &&
+                    !isCollapsed && (
+                      <div className="mt-1">
+                        {visibleChildren.map((item) => {
+                          const ItemIcon = item.icon as any;
+                          const active = isActive(item.path);
+                          return (
+                            <button
+                              key={item.path}
+                              onClick={() => {
+                                navigate(item.path);
+                                onRequestClose?.();
+                              }}
+                              className={`w-full grid grid-cols-[20px_minmax(0,1fr)_10px] items-center gap-3
                               pl-8 pr-3 py-2 rounded-md transition-all duration-200
                               ${
                                 active
                                   ? "bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg shadow-blue-500/25"
                                   : "hover:bg-gray-700"
                               }`}
-                            title={item.label}
-                          >
-                            <ItemIcon
-                              className={`w-4 h-4 ${active ? "text-white" : "text-gray-300 group-hover:text-white"}`}
-                            />
-                            <span
-                              className={`text-sm whitespace-nowrap truncate ${
-                                active ? "text-white" : "text-gray-300 group-hover:text-white"
-                              }`}
+                              title={item.label}
                             >
-                              {item.label}
-                            </span>
-                            <span
-                              className={`justify-self-end w-2 h-2 rounded-full bg-white ${
-                                active ? "opacity-100" : "opacity-0"
-                              }`}
-                            />
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+                              <ItemIcon
+                                className={`w-4 h-4 ${
+                                  active
+                                    ? "text-white"
+                                    : "text-gray-300 group-hover:text-white"
+                                }`}
+                              />
+                              <span
+                                className={`text-sm whitespace-nowrap truncate ${
+                                  active
+                                    ? "text-white"
+                                    : "text-gray-300 group-hover:text-white"
+                                }`}
+                              >
+                                {item.label}
+                              </span>
+                              <span
+                                className={`justify-self-end w-2 h-2 rounded-full bg-white ${
+                                  active ? "opacity-100" : "opacity-0"
+                                }`}
+                              />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                 </div>
               );
             })}
@@ -383,7 +495,9 @@ export default function Sidebar({
           title="Cerrar Sesión"
         >
           <LogOut className="w-5 h-5" />
-          {!isCollapsed && <span className="text-sm font-medium">Cerrar Sesión</span>}
+          {!isCollapsed && (
+            <span className="text-sm font-medium">Cerrar Sesión</span>
+          )}
         </button>
       </div>
     </div>

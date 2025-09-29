@@ -14,6 +14,7 @@ import {
 import { getAreas, type CommonArea } from "../api/commons";
 import { getUsersByRoleName } from "../api/properties";
 import type { User } from "../api/users";
+import { registrarBitacora } from "../api/bitacora";
 
 type NewProperty = {
   numero: string;
@@ -159,6 +160,12 @@ export default function Properties() {
         area: newProperty.area,
         owner_id: newProperty.owner_id ?? null,
       };
+      const userIdStr = localStorage.getItem("userId");
+      const userId = userIdStr ? parseInt(userIdStr, 10) : undefined;
+      console.log("User ID:", userId);
+      if (userId) {
+        await registrarBitacora(userId, "Crear Propiedad", "exitoso");
+      }
       const saved = await createProperty(payload);
       setCasas((prev) => [...prev, saved]);
       setNewProperty({ numero: "", area: "", edificio: "A", owner_id: null });
@@ -188,12 +195,16 @@ export default function Properties() {
     try {
       const payload: Partial<NewProperty> = {};
       if (editForm.edificio) payload.edificio = editForm.edificio;
-      if (editForm.numero) payload.numero = editForm.numero.toUpperCase().trim();
-      if (typeof editForm.owner_id !== "undefined") payload.owner_id = editForm.owner_id;
+      if (editForm.numero)
+        payload.numero = editForm.numero.toUpperCase().trim();
+      if (typeof editForm.owner_id !== "undefined")
+        payload.owner_id = editForm.owner_id;
       if (typeof editForm.area !== "undefined") payload.area = editForm.area;
 
       const updated = await updateProperty(editTarget.id, payload);
-      setCasas((prev) => prev.map((c) => (c.id === editTarget.id ? updated : c)));
+      setCasas((prev) =>
+        prev.map((c) => (c.id === editTarget.id ? updated : c))
+      );
       setSelectedProperty(updated.id);
       setShowEdit(false);
       setEditTarget(null);
@@ -239,7 +250,9 @@ export default function Properties() {
           c.id === currentCasa.id
             ? {
                 ...c,
-                tenants: (c.tenants || []).some((t) => t.user.id === tenant.user.id)
+                tenants: (c.tenants || []).some(
+                  (t) => t.user.id === tenant.user.id
+                )
                   ? c.tenants
                   : [...(c.tenants || []), tenant],
                 estado: "ocupada",
@@ -261,7 +274,9 @@ export default function Properties() {
       setCasas((prev) =>
         prev.map((c) => {
           if (c.id !== currentCasa.id) return c;
-          const newTenants = (c.tenants || []).filter((t) => t.user.id !== userId);
+          const newTenants = (c.tenants || []).filter(
+            (t) => t.user.id !== userId
+          );
           return {
             ...c,
             tenants: newTenants,
@@ -356,7 +371,10 @@ export default function Properties() {
                       type="text"
                       value={newProperty.numero}
                       onChange={(e) =>
-                        setNewProperty({ ...newProperty, numero: e.target.value })
+                        setNewProperty({
+                          ...newProperty,
+                          numero: e.target.value,
+                        })
                       }
                       className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm"
                       placeholder="A-101"
@@ -389,7 +407,9 @@ export default function Properties() {
                       onChange={(e) =>
                         setNewProperty({
                           ...newProperty,
-                          owner_id: e.target.value ? Number(e.target.value) : null,
+                          owner_id: e.target.value
+                            ? Number(e.target.value)
+                            : null,
                         })
                       }
                       className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm"
@@ -397,8 +417,10 @@ export default function Properties() {
                       <option value="">— Sin dueño —</option>
                       {ownerCandidates.map((u) => (
                         <option key={u.id} value={u.id}>
-                          {(u.first_name || u.last_name)
-                            ? `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim()
+                          {u.first_name || u.last_name
+                            ? `${u.first_name ?? ""} ${
+                                u.last_name ?? ""
+                              }`.trim()
                             : u.email}
                         </option>
                       ))}
@@ -461,7 +483,9 @@ export default function Properties() {
                     );
                   })}
                   {areas.length === 0 && (
-                    <div className="text-gray-500 text-sm">No hay áreas comunes</div>
+                    <div className="text-gray-500 text-sm">
+                      No hay áreas comunes
+                    </div>
                   )}
                 </div>
               </div>
@@ -471,7 +495,8 @@ export default function Properties() {
             <div className="absolute left-10 top-28">
               <div className="text-center mb-2">
                 <span className="bg-blue-600 text-white px-3 py-1 rounded text-xs font-bold">
-                  EDIFICIO A ({casas.filter((c) => c.numero.startsWith("A")).length})
+                  EDIFICIO A (
+                  {casas.filter((c) => c.numero.startsWith("A")).length})
                 </span>
               </div>
               <div className="space-y-2.5 pr-1 max-h-64 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -493,7 +518,9 @@ export default function Properties() {
                                         : ""
                                     }`}
                         onClick={() => selectProperty(casa.id)}
-                        title={`Propietario: ${ownerLabel(casa)} · Inq: ${tenantsLabel(casa)}`}
+                        title={`Propietario: ${ownerLabel(
+                          casa
+                        )} · Inq: ${tenantsLabel(casa)}`}
                       >
                         {casa.numero}
                       </button>
@@ -506,7 +533,8 @@ export default function Properties() {
             <div className="absolute right-10 top-28">
               <div className="text-center mb-2">
                 <span className="bg-blue-600 text-white px-3 py-1 rounded text-xs font-bold">
-                  EDIFICIO B ({casas.filter((c) => c.numero.startsWith("B")).length})
+                  EDIFICIO B (
+                  {casas.filter((c) => c.numero.startsWith("B")).length})
                 </span>
               </div>
               <div className="space-y-2.5 pl-1 max-h-64 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -528,7 +556,9 @@ export default function Properties() {
                                         : ""
                                     }`}
                         onClick={() => selectProperty(casa.id)}
-                        title={`Propietario: ${ownerLabel(casa)} · Inq: ${tenantsLabel(casa)}`}
+                        title={`Propietario: ${ownerLabel(
+                          casa
+                        )} · Inq: ${tenantsLabel(casa)}`}
                       >
                         {casa.numero}
                       </button>
@@ -539,9 +569,11 @@ export default function Properties() {
 
             {/* parque */}
             <div className="absolute left-1/2 top-36 -translate-x-1/2">
-              <div className="w-32 h-20 bg-yellow-300 border-2 border-yellow-500 rounded
+              <div
+                className="w-32 h-20 bg-yellow-300 border-2 border-yellow-500 rounded
                               flex items-center justify-center
-                              text-yellow-900 font-bold text-sm">
+                              text-yellow-900 font-bold text-sm"
+              >
                 PARQUE
               </div>
             </div>
@@ -556,8 +588,6 @@ export default function Properties() {
               </div>
             </div>
           </div>
-
-    
 
           {/* Panel de info */}
           {currentCasa ? (
@@ -602,7 +632,8 @@ export default function Properties() {
                   <span className="capitalize">{currentCasa.estado}</span>
                 </div>
                 <div>
-                  <strong>Área:</strong> {currentCasa.area ?? currentCasa.area_m2 ?? "—"}
+                  <strong>Área:</strong>{" "}
+                  {currentCasa.area ?? currentCasa.area_m2 ?? "—"}
                 </div>
               </div>
               <button
@@ -636,7 +667,8 @@ export default function Properties() {
                 </div>
                 <div>
                   <strong>Horario:</strong>{" "}
-                  {hhmm(selectedArea.horario_apertura)} – {hhmm(selectedArea.horario_cierre)}
+                  {hhmm(selectedArea.horario_apertura)} –{" "}
+                  {hhmm(selectedArea.horario_cierre)}
                 </div>
                 <div className="md:col-span-2">
                   <strong>Descripción:</strong>{" "}
@@ -724,12 +756,16 @@ export default function Properties() {
                   </label>
                   <select
                     value={
-                      typeof editForm.owner_id === "number" ? editForm.owner_id : ""
+                      typeof editForm.owner_id === "number"
+                        ? editForm.owner_id
+                        : ""
                     }
                     onChange={(e) =>
                       setEditForm((p) => ({
                         ...p,
-                        owner_id: e.target.value ? Number(e.target.value) : null,
+                        owner_id: e.target.value
+                          ? Number(e.target.value)
+                          : null,
                       }))
                     }
                     className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm"
@@ -737,7 +773,7 @@ export default function Properties() {
                     <option value="">— Sin dueño —</option>
                     {ownerCandidates.map((u) => (
                       <option key={u.id} value={u.id}>
-                        {(u.first_name || u.last_name)
+                        {u.first_name || u.last_name
                           ? `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim()
                           : u.email}
                       </option>
@@ -817,19 +853,26 @@ export default function Properties() {
                   <select
                     value={tenantToAdd}
                     onChange={(e) =>
-                      setTenantToAdd(e.target.value ? Number(e.target.value) : "")
+                      setTenantToAdd(
+                        e.target.value ? Number(e.target.value) : ""
+                      )
                     }
                     className="flex-1 border border-gray-300 rounded-md px-2.5 py-2 text-sm"
                   >
                     <option value="">— Selecciona un inquilino —</option>
                     {tenantCandidates
                       .filter(
-                        (u) => !(currentCasa.tenants || []).some((t) => t.user.id === u.id)
+                        (u) =>
+                          !(currentCasa.tenants || []).some(
+                            (t) => t.user.id === u.id
+                          )
                       )
                       .map((u) => (
                         <option key={u.id} value={u.id}>
-                          {(u.first_name || u.last_name)
-                            ? `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim()
+                          {u.first_name || u.last_name
+                            ? `${u.first_name ?? ""} ${
+                                u.last_name ?? ""
+                              }`.trim()
                             : u.email}
                         </option>
                       ))}
@@ -844,16 +887,25 @@ export default function Properties() {
               </div>
 
               <div>
-                <h4 className="text-sm font-semibold text-gray-800 mb-1">Actuales</h4>
+                <h4 className="text-sm font-semibold text-gray-800 mb-1">
+                  Actuales
+                </h4>
                 {(currentCasa.tenants || []).length === 0 ? (
-                  <div className="text-sm text-gray-500">No hay inquilinos.</div>
+                  <div className="text-sm text-gray-500">
+                    No hay inquilinos.
+                  </div>
                 ) : (
                   <ul className="divide-y">
                     {(currentCasa.tenants || []).map((t) => (
-                      <li key={t.user.id} className="py-2 flex items-center justify-between">
+                      <li
+                        key={t.user.id}
+                        className="py-2 flex items-center justify-between"
+                      >
                         <div className="text-sm">
                           {t.user.first_name || t.user.last_name
-                            ? `${t.user.first_name ?? ""} ${t.user.last_name ?? ""}`.trim()
+                            ? `${t.user.first_name ?? ""} ${
+                                t.user.last_name ?? ""
+                              }`.trim()
                             : t.user.email}
                         </div>
                         <button

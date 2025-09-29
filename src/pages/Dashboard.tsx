@@ -1,6 +1,9 @@
 import { Calendar, Bell, Users, MapPin } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
+  const navigate = useNavigate();
+
   return (
     <div className="p-6">
       {/* Encabezado */}
@@ -13,7 +16,11 @@ const Dashboard = () => {
 
       {/* Tarjetas de accesos rápidos */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="p-5 bg-white rounded-2xl shadow-lg hover:shadow-xl transition">
+        {/* Usuarios */}
+        <div
+          onClick={() => navigate("/users")}
+          className="p-5 bg-white rounded-2xl shadow-lg hover:shadow-xl transition cursor-pointer"
+        >
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-gray-700">Usuarios</h3>
@@ -23,7 +30,11 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="p-5 bg-white rounded-2xl shadow-lg hover:shadow-xl transition">
+        {/* Avisos */}
+        <div
+          onClick={() => navigate("/notices")}
+          className="p-5 bg-white rounded-2xl shadow-lg hover:shadow-xl transition cursor-pointer"
+        >
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-gray-700">Avisos</h3>
@@ -33,7 +44,11 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="p-5 bg-white rounded-2xl shadow-lg hover:shadow-xl transition">
+        {/* Áreas Comunes */}
+        <div
+          onClick={() => navigate("/areas")}
+          className="p-5 bg-white rounded-2xl shadow-lg hover:shadow-xl transition cursor-pointer"
+        >
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-gray-700">Áreas Comunes</h3>
@@ -43,7 +58,11 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="p-5 bg-white rounded-2xl shadow-lg hover:shadow-xl transition">
+        {/* Reservas */}
+        <div
+          onClick={() => navigate("/reservas")}
+          className="p-5 bg-white rounded-2xl shadow-lg hover:shadow-xl transition cursor-pointer"
+        >
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-gray-700">Reservas</h3>

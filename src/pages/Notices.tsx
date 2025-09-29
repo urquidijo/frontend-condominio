@@ -9,6 +9,7 @@ import {
   deleteNotice,
 } from "../api/notices";
 import type { Notice } from "../api/notices";
+import { registrarBitacora } from "../api/bitacora";
 
 Modal.setAppElement("#root");
 
@@ -51,6 +52,12 @@ const NoticesSystem: React.FC = () => {
 
   const fetchNotices = async () => {
     try {
+      const userIdStr = localStorage.getItem("userId");
+            const userId = userIdStr ? parseInt(userIdStr, 10) : undefined;
+            console.log("User ID:", userId);
+            if (userId) {
+              await registrarBitacora(userId, "Obtener Avisos", "exitoso");
+            }
       const data = await getNotices();
       setNotices(data);
     } catch (error) {
@@ -69,6 +76,12 @@ const NoticesSystem: React.FC = () => {
         await updateNotice(selectedNotice.id, values);
       } else {
         await createNotice(values);
+      }
+      const userIdStr = localStorage.getItem("userId");
+      const userId = userIdStr ? parseInt(userIdStr, 10) : undefined;
+      console.log("User ID:", userId);
+      if (userId) {
+        await registrarBitacora(userId, "Crear Aviso", "exitoso");
       }
       reset({ title: "", content: "", priority: "MEDIA" });
       setShowModal(false);
