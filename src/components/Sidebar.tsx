@@ -31,7 +31,7 @@ import {
 import { useNavigate, useLocation } from "react-router-dom";
 import { hasPermission } from "../hooks/usePermissions";
 import { registrarBitacora } from "../api/bitacora";
-import { visitorLogout } from "../api/ai"; // 👈 nuevo
+import { visitorLogout } from "../api/ai";
 
 type SubItem = {
   path: string;
@@ -44,6 +44,7 @@ type Section = {
   key: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
+  permission?: string | null;           // ⬅️ permiso a nivel sección
   children?: SubItem[];
 };
 
@@ -62,47 +63,49 @@ export default function Sidebar({
   const location = useLocation();
   const isCollapsed = variant === "mobile" ? false : collapsed;
 
-  // Definición estática de secciones con íconos corregidos
+  // Secciones + permisos corregidos
   const sections: Section[] = useMemo(
     () => [
       {
         key: "gestion-usuario",
         label: "Gestión Usuario",
         icon: Users,
+        permission: "view_gestion_usuario",
         children: [
           { path: "/users", label: "Usuarios", icon: Users, permission: "view_users" },
-          { path: "/roles", label: "Roles", icon: ShieldCheck, permission: "view_users" },
-          { path: "/bitacora", label: "Bitácora", icon: History, permission: "view_users" },
+          { path: "/roles", label: "Roles", icon: ShieldCheck, permission: "view_roles" },
+          { path: "/bitacora", label: "Bitácora", icon: History, permission: "view_bitacora" },
         ],
       },
       {
         key: "gestionar-avisos",
         label: "Gestionar Avisos",
         icon: Bell,
-        children: [
-          { path: "/notices", label: "Avisos", icon: Bell, permission: "view_notices" },
-        ],
+        permission: "view_gestionar_avisos",
+        children: [{ path: "/notices", label: "Avisos", icon: Bell, permission: "view_notices" }],
       },
       {
         key: "gestion-propiedades",
         label: "Gestión Propiedades",
         icon: Home,
+        permission: "view_gestion_propiedades",
         children: [
           { path: "/areas", label: "Áreas Comunes", icon: LayoutGrid, permission: "view_areas" },
           { path: "/reservas", label: "Mis Reservas", icon: Calendar, permission: "view_reservas" },
           { path: "/properties", label: "Propiedades", icon: Home, permission: "view_properties" },
           { path: "/reportes-uso", label: "Reportes de Uso", icon: BarChart3, permission: "view_reportes_uso" },
-          { path: "/pagos", label: "Pagos", icon: CreditCard, permission: "view_properties" },
-          { path: "/pagos/configuracion", label: "Pagos Configuración", icon: Settings, permission: "view_reportes_uso" },
-          { path: "/reportes/pagos", label: "Pagos Reportes", icon: Receipt, permission: "view_reportes_uso" },
-          { path: "/reservas/nueva", label: "Nuevas Reservas", icon: CalendarPlus, permission: "view_reportes_uso" },
-          { path: "/indicadores", label: "Indicadores", icon: TrendingUp, permission: "view_reportes_uso" },
+          { path: "/pagos", label: "Pagos", icon: CreditCard, permission: "view_pagos" },
+          { path: "/pagos/configuracion", label: "Pagos Configuración", icon: Settings, permission: "view_pagos_config" },
+          { path: "/reportes/pagos", label: "Pagos Reportes", icon: Receipt, permission: "view_pagos_reportes" },
+          { path: "/reservas/nueva", label: "Nuevas Reservas", icon: CalendarPlus, permission: "view_nuevas_reservas" },
+          { path: "/indicadores", label: "Indicadores", icon: TrendingUp, permission: "view_indicadores" },
         ],
       },
       {
         key: "gestion-mantenimiento",
         label: "Gestión de Mantenimiento",
         icon: Wrench,
+        permission: "view_gestion_mantenimiento",
         children: [
           { path: "/mantenimiento/tareas", label: "Tareas", icon: ListChecks, permission: "view_mantenimiento_tareas" },
           { path: "/mantenimiento/reportes", label: "Reportes", icon: ClipboardList, permission: "view_mantenimiento_reportes" },
@@ -112,16 +115,18 @@ export default function Sidebar({
         key: "gestionar-reportes",
         label: "Gestionar Reportes",
         icon: FileText,
+        permission: "view_gestionar_reportes",
         children: [
-          { path: "/plates", label: "Placas", icon: Car, permission: "view_areas" },
-          { path: "/iareportes", label: "IA Reportes", icon: Cpu, permission: "view_areas" },
-          { path: "/reportevisitante", label: "Reporte Visitante", icon: UserCheck, permission: "view_areas" },
+          { path: "/plates", label: "Placas", icon: Car, permission: "view_placas" },
+          { path: "/iareportes", label: "IA Reportes", icon: Cpu, permission: "view_ia_reportes" },
+          { path: "/reportevisitante", label: "Reporte Visitante", icon: UserCheck, permission: "view_reporte_visitante" },
         ],
       },
       {
         key: "gestionar-seguridad",
         label: "Gestionar Seguridad",
         icon: Shield,
+        permission: "view_gestionar_seguridad",
         children: [],
       },
     ],
@@ -184,6 +189,8 @@ export default function Sidebar({
     }
   };
 
+  const canSeeInicio = hasPermission("view_inicio");
+
   return (
     <div
       className={`h-full bg-gradient-to-b from-gray-900 to-gray-800 text-white flex flex-col shadow-2xl
@@ -240,40 +247,42 @@ export default function Sidebar({
 
         {/* Inicio */}
         <nav className="p-4">
-          <button
-            onClick={() => {
-              navigate("/dashboard");
-              onRequestClose?.();
-            }}
-            className={`w-full grid grid-cols-[24px_minmax(0,1fr)_10px] items-center
-              p-3 rounded-lg transition-all duration-200 group mb-2
-              ${
-                isActive("/dashboard")
-                  ? "bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg shadow-blue-500/25"
-                  : "hover:bg-gray-700 hover:shadow-md"
-              }`}
-            title="Inicio"
-          >
-            <Home
-              className={`w-5 h-5 ${
-                isActive("/dashboard") ? "text-white" : "text-gray-300 group-hover:text-white"
-              }`}
-            />
-            {!isCollapsed && (
-              <span
-                className={`text-sm font-medium whitespace-nowrap truncate ${
+          {canSeeInicio && (
+            <button
+              onClick={() => {
+                navigate("/dashboard");
+                onRequestClose?.();
+              }}
+              className={`w-full grid grid-cols-[24px_minmax(0,1fr)_10px] items-center
+                p-3 rounded-lg transition-all duration-200 group mb-2
+                ${
+                  isActive("/dashboard")
+                    ? "bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg shadow-blue-500/25"
+                    : "hover:bg-gray-700 hover:shadow-md"
+                }`}
+              title="Inicio"
+            >
+              <Home
+                className={`w-5 h-5 ${
                   isActive("/dashboard") ? "text-white" : "text-gray-300 group-hover:text-white"
                 }`}
-              >
-                Inicio
-              </span>
-            )}
-            <span
-              className={`justify-self-end w-2 h-2 rounded-full bg-white ${
-                isActive("/dashboard") ? "opacity-100" : "opacity-0"
-              }`}
-            />
-          </button>
+              />
+              {!isCollapsed && (
+                <span
+                  className={`text-sm font-medium whitespace-nowrap truncate ${
+                    isActive("/dashboard") ? "text-white" : "text-gray-300 group-hover:text-white"
+                  }`}
+                >
+                  Inicio
+                </span>
+              )}
+              <span
+                className={`justify-self-end w-2 h-2 rounded-full bg-white ${
+                  isActive("/dashboard") ? "opacity-100" : "opacity-0"
+                }`}
+              />
+            </button>
+          )}
 
           {/* Secciones */}
           <div className="space-y-2">
@@ -285,7 +294,12 @@ export default function Sidebar({
                 (c) => !c.permission || hasPermission(c.permission)
               );
 
-              if (children.length > 0 && visibleChildren.length === 0) return null;
+              // Mostrar si: (tiene permiso a la sección) O (hay al menos un hijo visible)
+              const canShowSection =
+                (section.permission ? hasPermission(section.permission) : false) ||
+                visibleChildren.length > 0;
+
+              if (!canShowSection) return null;
 
               return (
                 <div key={section.key} className="rounded-lg">
