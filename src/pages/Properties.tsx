@@ -557,28 +557,7 @@ export default function Properties() {
             </div>
           </div>
 
-          {/* Leyenda */}
-          <div className="mt-5">
-            <h4 className="font-semibold text-gray-800 mb-2 text-sm">Leyenda:</h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-blue-300 border border-blue-500"></div>
-                <span>Ocupada</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-gray-300 border border-gray-500"></div>
-                <span>Disponible</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-blue-400 border border-blue-600"></div>
-                <span>Área Común</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-yellow-300 border border-yellow-600 rounded-full"></div>
-                <span>Seleccionada</span>
-              </div>
-            </div>
-          </div>
+    
 
           {/* Panel de info */}
           {currentCasa ? (

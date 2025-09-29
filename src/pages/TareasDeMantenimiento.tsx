@@ -40,7 +40,22 @@ type Task = {
 
 type Staff = { id: number; name: string; type: "interno" | "externo" };
 
+/* ========= Lee rol desde localStorage y decide si puede ver CRUD ========= */
+const isAdminFromStorage = () => {
+  const raw = localStorage.getItem("role");
+  if (!raw) return false;
+  try {
+    const parsed = JSON.parse(raw);
+    const name = (parsed?.name ?? "").toString();
+    return /administrador/i.test(name);
+  } catch {
+    return /administrador/i.test(raw);
+  }
+};
+
 const TareasDeMantenimiento: React.FC = () => {
+  const [canCrud] = useState<boolean>(isAdminFromStorage());
+
   const [staff, setStaff] = useState<Staff[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [showModal, setShowModal] = useState(false);
@@ -327,13 +342,17 @@ const TareasDeMantenimiento: React.FC = () => {
             <option value="en_progreso">En Progreso</option>
             <option value="completado">Completado</option>
           </select>
-          <button
-            onClick={() => openModal()}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Nueva Tarea
-          </button>
+
+          {/* Botón Nueva Tarea solo para Administrador */}
+          {canCrud && (
+            <button
+              onClick={() => openModal()}
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Nueva Tarea
+            </button>
+          )}
         </div>
       </div>
 
@@ -372,7 +391,7 @@ const TareasDeMantenimiento: React.FC = () => {
                     {new Date(task.scheduledDate).toLocaleDateString()}
                   </span>
 
-                  {/* ✅ Fecha de finalización visible cuando exista */}
+                  {/* Fecha de finalización visible cuando exista */}
                   {task.completedDate && (
                     <span className="flex items-center">
                       <Clock className="h-4 w-4 mr-1" />
@@ -393,47 +412,59 @@ const TareasDeMantenimiento: React.FC = () => {
                   </span>
                 </div>
               </div>
+
+              {/* Acciones CRUD solo para Administrador */}
               <div className="flex items-center gap-2 mt-4 md:mt-0">
-                {task.status !== "completado" && (
-                  <button
-                    onClick={() =>
-                      updateTaskStatus(
-                        task.id,
-                        task.status === "pendiente"
-                          ? "en_progreso"
-                          : "completado"
-                      )
-                    }
-                    disabled={updatingId === task.id}
-                    className={`px-3 py-1 rounded-md text-sm ${
-                      task.status === "pendiente"
-                        ? "bg-green-100 text-green-700 hover:bg-green-200"
-                        : "bg-blue-100 text-blue-700 hover:bg-blue-200"
-                    } ${updatingId === task.id ? "opacity-60 cursor-not-allowed" : ""}`}
-                  >
-                    {task.status === "pendiente" ? "Iniciar" : "Completado"}
-                  </button>
+                {canCrud && (
+                  <>
+                    {task.status !== "completado" && (
+                      <button
+                        onClick={() =>
+                          updateTaskStatus(
+                            task.id,
+                            task.status === "pendiente"
+                              ? "en_progreso"
+                              : "completado"
+                          )
+                        }
+                        disabled={updatingId === task.id}
+                        className={`px-3 py-1 rounded-md text-sm ${
+                          task.status === "pendiente"
+                            ? "bg-green-100 text-green-700 hover:bg-green-200"
+                            : "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                        } ${
+                          updatingId === task.id
+                            ? "opacity-60 cursor-not-allowed"
+                            : ""
+                        }`}
+                      >
+                        {task.status === "pendiente" ? "Iniciar" : "Completado"}
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => openModal(task)}
+                      className="p-2 text-gray-500 hover:text-blue-600"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </button>
+
+                    <button
+                      onClick={() => deleteTaskLocalAndApi(task.id)}
+                      className="p-2 text-gray-500 hover:text-red-600"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </>
                 )}
-                <button
-                  onClick={() => openModal(task)}
-                  className="p-2 text-gray-500 hover:text-blue-600"
-                >
-                  <Edit className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => deleteTaskLocalAndApi(task.id)}
-                  className="p-2 text-gray-500 hover:text-red-600"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Modal */}
-      {showModal && (
+      {/* Modal: solo visible para Administrador */}
+      {canCrud && showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-white/70 backdrop-blur-sm"
@@ -444,7 +475,7 @@ const TareasDeMantenimiento: React.FC = () => {
             aria-modal="true"
             className="relative z-10 w-full max-w-2xl rounded-2xl bg-white shadow-2xl ring-1 ring-gray-200"
           >
-        {/* Header */}
+            {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <h2 className="text-lg font-semibold text-gray-800">
                 {selectedItem ? "Editar Tarea" : "Agregar Tarea"}

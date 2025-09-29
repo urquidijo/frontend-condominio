@@ -21,9 +21,7 @@ import {
 
 import { getProperties, type Property } from "../api/properties";
 
-/* ───────────────────────────────
- * Stripe loader
- * ─────────────────────────────── */
+/* Stripe loader */
 const loadStripe = (): Promise<any> =>
   new Promise((resolve, reject) => {
     const w = window as any;
@@ -44,34 +42,35 @@ const loadStripe = (): Promise<any> =>
     document.head.appendChild(s);
   });
 
-/* ───────────────────────────────
- * Tipos enriquecidos para la UI
- * ─────────────────────────────── */
+/* Tipos UI */
 type UICharge = ChargeDTO & {
-  property_label: string;   // A-101, B-302, etc.
-  price_type: string;       // "Expensas", "Multa", etc.
-  amount_num: number;       // base_price en número
-  currency?: string;        // si la mantienes en el backend
+  property_label: string;
+  price_type: string;
+  amount_num: number;
+  currency?: string;
 };
 
 type FormState = {
   price_config_id: number | null;
-  fecha_pago: string;          // "" se manda como null
+  fecha_pago: string;
   selectedProps: number[];
   assignAll: boolean;
 };
 
-/* ───────────────────────────────
- * Helpers
- * ─────────────────────────────── */
 const toNumber = (v: string | number | null | undefined) =>
   v == null ? 0 : typeof v === "number" ? v : Number(v);
 
 const propertyLabel = (p?: Property) => {
   if (!p) return "CASA-?";
-  if ((p as any).codigo) return String((p as any).codigo);
-  if ((p as any).edificio && (p as any).numero) return `${(p as any).edificio}-${(p as any).numero}`;
-  if ((p as any).numero) return String((p as any).numero);
+  const codigo = (p as any).codigo as string | undefined;
+  if (codigo) return codigo.trim();
+  const edificio = String((p as any).edificio ?? "").trim();
+  let numero = String((p as any).numero ?? "").trim();
+  if (edificio && numero.startsWith(edificio + "")) {
+    numero = numero.slice(edificio.length + 1);
+  }
+  if (edificio && numero) return `${edificio}-${numero}`;
+  if (numero) return numero;
   return "CASA-?";
 };
 
@@ -97,10 +96,22 @@ const isOverdue = (due?: string | null) => {
   }
 };
 
-/* ───────────────────────────────
- * Componente
- * ─────────────────────────────── */
+/* Permisos solo frontend */
+const isAdminFromStorage = () => {
+  const raw = localStorage.getItem("role");
+  if (!raw) return false;
+  try {
+    const parsed = JSON.parse(raw);
+    const name = (parsed?.name ?? "").toString();
+    return /administrador/i.test(name);
+  } catch {
+    return /administrador/i.test(raw);
+  }
+};
+
 const ConsultaPagos: React.FC = () => {
+  const [canCrud] = useState<boolean>(isAdminFromStorage());
+
   const [configs, setConfigs] = useState<PriceConfigDTO[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [charges, setCharges] = useState<UICharge[]>([]);
@@ -115,7 +126,6 @@ const ConsultaPagos: React.FC = () => {
     assignAll: false,
   });
 
-  /* cargar datos iniciales */
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -157,7 +167,6 @@ const ConsultaPagos: React.FC = () => {
     })();
   }, []);
 
-  /* derivados */
   const filteredCharges = useMemo(
     () => (filterPropId ? charges.filter((c) => c.property_id === filterPropId) : charges),
     [charges, filterPropId]
@@ -181,7 +190,6 @@ const ConsultaPagos: React.FC = () => {
     return map[s];
   };
 
-  /* acciones formulario */
   const toggleAll = () => {
     setForm((f) => {
       const next = !f.assignAll;
@@ -270,56 +278,55 @@ const ConsultaPagos: React.FC = () => {
     }
   };
 
-  /* render */
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
-        {/* header */}
         <div className="text-center mb-10">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">Gestión de Cargos</h1>
           <p className="text-gray-500 text-sm">Asigna cargos (expensas, multas, servicios) y consulta su estado</p>
         </div>
 
-        {/* actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div>
-            <button
-              onClick={() => setShowAssignForm(true)}
-              className="w-full md:w-auto px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2 font-medium shadow-sm"
-            >
-              <Plus className="w-5 h-5" />
-              Nueva Asignación
-            </button>
-          </div>
+        {/* Bloque de acciones (botón y filtro) visible solo para Administrador */}
+        {canCrud && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div>
+              <button
+                onClick={() => setShowAssignForm(true)}
+                className="w-full md:w-auto px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2 font-medium shadow-sm"
+              >
+                <Plus className="w-5 h-5" />
+                Nueva Asignación
+              </button>
+            </div>
 
-          <div className="border rounded-lg p-4 shadow-sm bg-white">
-            <h2 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-              <Home className="w-4 h-4 text-blue-600" />
-              Filtrar por Propiedad
-            </h2>
-            <select
-              value={filterPropId}
-              onChange={(e) => setFilterPropId(Number(e.target.value))}
-              className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
-            >
-              <option value={0}>Todas</option>
-              {properties.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {propertyLabel(p)}
-                </option>
-              ))}
-            </select>
+            <div className="border rounded-lg p-4 shadow-sm bg-white">
+              <h2 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                <Home className="w-4 h-4 text-blue-600" />
+                Filtrar por Propiedad
+              </h2>
+              <select
+                value={filterPropId}
+                onChange={(e) => setFilterPropId(Number(e.target.value))}
+                className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
+              >
+                <option value={0}>Todas</option>
+                {properties.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {propertyLabel(p)}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* lista */}
         <div className="border rounded-lg shadow-sm bg-white p-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">Cargos</h3>
 
           {loading && <p className="text-sm text-gray-500 mb-4">Cargando…</p>}
 
           <div className="space-y-4">
-            {filteredCharges.map((c) => {
+            {(canCrud ? filteredCharges : charges).map((c) => {
               const pill = statusPill(c);
               const dueText = c.fecha_pago ? `Vence: ${formatDate(c.fecha_pago)}` : "Sin vencimiento";
               const issuedText = `Emitido: ${formatDate(c.issued_at)}`;
@@ -381,14 +388,13 @@ const ConsultaPagos: React.FC = () => {
               );
             })}
 
-            {filteredCharges.length === 0 && (
+            {(canCrud ? filteredCharges : charges).length === 0 && (
               <p className="text-sm text-gray-500">No hay cargos para mostrar.</p>
             )}
           </div>
         </div>
 
-        {/* modal asignación */}
-        {showAssignForm && (
+        {canCrud && showAssignForm && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between p-6 border-b border-gray-200">
@@ -402,7 +408,6 @@ const ConsultaPagos: React.FC = () => {
               </div>
 
               <div className="p-6 space-y-6">
-                {/* tipo de cargo */}
                 <div>
                   <h3 className="text-lg font-semibold text-gray-800 mb-4">1. Seleccionar Tipo de Cargo</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -427,7 +432,6 @@ const ConsultaPagos: React.FC = () => {
                   </div>
                 </div>
 
-                {/* fecha de pago */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de vencimiento</label>
@@ -440,7 +444,6 @@ const ConsultaPagos: React.FC = () => {
                   </div>
                 </div>
 
-                {/* propiedades */}
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-800">2. Seleccionar Propiedades</h3>
@@ -476,7 +479,6 @@ const ConsultaPagos: React.FC = () => {
                   </div>
                 </div>
 
-                {/* acciones */}
                 <div className="flex gap-4 pt-6 border-t border-gray-200">
                   <button
                     onClick={submitAssign}
@@ -497,7 +499,6 @@ const ConsultaPagos: React.FC = () => {
             </div>
           </div>
         )}
-        {/* /modal */}
       </div>
     </div>
   );

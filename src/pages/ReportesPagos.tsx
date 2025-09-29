@@ -5,7 +5,6 @@ import {
   MapPin,
   Download,
   Search,
-  Plus,
   ChevronDown,
   DollarSign,
   ExternalLink,
@@ -52,6 +51,27 @@ const ReportesPagos = () => {
       setLoading(false);
     }
   };
+
+
+  const normDash = (s: string) =>
+  s
+    .replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, "-") // dashes unicode -> "-"
+    .replace(/[\u00A0\u200B\u200C\u200D]/g, "")                  // espacios invisibles
+    .trim();
+
+const formatPropLabel = (val?: string) => {
+  if (!val) return "-";
+  let s = normDash(String(val)).replace(/\s+/g, ""); // quita espacios
+  // divide por guiones, quita vacíos
+  const parts = s.split("-").filter(Boolean);
+  // si el prefijo (A, B, etc.) se repite: A-A-101 -> A-101
+  if (parts.length >= 3 && parts[0].toUpperCase() === parts[1].toUpperCase()) {
+    parts.splice(1, 1);
+  }
+  // vuelve a unir como A-101
+  if (parts.length >= 2) return `${parts[0]}-${parts.slice(1).join("-")}`;
+  return s;
+};
 
   const handleExport = async () => {
     try {
@@ -137,10 +157,7 @@ const ReportesPagos = () => {
               <Download className="w-4 h-4 mr-2" />
               Exportar
             </button>
-            <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg shadow transition flex items-center">
-              <Plus className="w-4 h-4 mr-2" />
-              Nuevo
-            </button>
+          
           </div>
         </div>
       </div>
@@ -184,7 +201,7 @@ const ReportesPagos = () => {
 
                     {/* Propiedad */}
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 border-r border-gray-200">
-                      {r.propiedad || "-"}
+                      {formatPropLabel(r.propiedad!)}
                     </td>
 
                     {/* Residente */}

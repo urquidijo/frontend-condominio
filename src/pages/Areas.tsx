@@ -25,7 +25,7 @@ const toHHMMSS = (t?: string) => {
 };
 
 // ===== Money helper
-const formatMoney = (v?: string | number | null, moneda = "Bs") => {
+const formatMoney = (v?: string | number | null, moneda = "USD") => {
   if (v === undefined || v === null || v === "") return `${moneda} 0.00`;
   const n = Number(v);
   if (!Number.isFinite(n)) return `${moneda} 0.00`;

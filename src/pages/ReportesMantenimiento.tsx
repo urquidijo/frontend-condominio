@@ -1,3 +1,4 @@
+
 // src/components/ReportesMantenimiento.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
@@ -116,6 +117,32 @@ const ReportesMantenimiento: React.FC = () => {
     };
     return map[prioridad] || "bg-gray-100 text-gray-800";
   };
+// ---- Solo FRONT: rol desde localStorage ----
+const getStoredRole = (): string => {
+  const raw = localStorage.getItem("role");
+  if (!raw) return "";
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed === "string") return parsed;
+    if ((parsed as any)?.name) return String((parsed as any).name);
+  } catch {
+    // ya era string
+  }
+  return String(raw);
+};
+
+const [isAdmin, setIsAdmin] = useState<boolean>(false);
+useEffect(() => {
+  const syncRole = () => {
+    const r = getStoredRole().toLowerCase();
+    // admite "Administrador", "admin", etc.
+    setIsAdmin(r.includes("administrador") || r.includes("admin"));
+  };
+  syncRole();
+  // si el rol cambia en otra pestaña
+  window.addEventListener("storage", syncRole);
+  return () => window.removeEventListener("storage", syncRole);
+}, []);
 
   useEffect(() => {
     (async () => {
@@ -191,8 +218,11 @@ const ReportesMantenimiento: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [staff.length]);
 
-  const abrirModal = (tipo: "crear" | "editar" | "detalle", r: ReporteUI | null = null) => {
-    setModalType(tipo);
+const abrirModal = (tipo: "crear" | "editar" | "detalle", r: ReporteUI | null = null) => {
+  // Solo FRONT: usuarios no admin no pueden abrir crear/editar
+  if (tipo !== "detalle" && !isAdmin) return;
+
+  setModalType(tipo);
 
     if (tipo === "crear") {
       setSelectedReport(null);
@@ -292,13 +322,15 @@ const ReportesMantenimiento: React.FC = () => {
           <p className="text-gray-600 text-sm">Gestión de mantenimiento preventivo y correctivo</p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => abrirModal("crear")}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            <Plus className="w-4 h-4" /> Nuevo
-          </button>
-        </div>
+  {isAdmin && (
+    <button
+      onClick={() => abrirModal("crear")}
+      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+    >
+      <Plus className="w-4 h-4" /> Nuevo
+    </button>
+  )}
+</div>
       </div>
 
       {(loading || staffLoading) && <p className="text-sm text-gray-500 mb-2">Cargando…</p>}
@@ -347,20 +379,24 @@ const ReportesMantenimiento: React.FC = () => {
                 >
                   <Eye className="w-4 h-4" />
                 </button>
-                <button
-                  onClick={() => abrirModal("editar", reporte)}
-                  className="p-2 text-yellow-600 hover:bg-yellow-100 rounded-md"
-                  title="Editar"
-                >
-                  <Edit className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => eliminar(reporte.id)}
-                  className="p-2 text-red-600 hover:bg-red-100 rounded-md"
-                  title="Eliminar"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+  {isAdmin && (
+    <>
+      <button
+        onClick={() => abrirModal("editar", reporte)}
+        className="p-2 text-yellow-600 hover:bg-yellow-100 rounded-md"
+        title="Editar"
+      >
+        <Edit className="w-4 h-4" />
+      </button>
+      <button
+        onClick={() => eliminar(reporte.id)}
+        className="p-2 text-red-600 hover:bg-red-100 rounded-md"
+        title="Eliminar"
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
+    </>
+  )}
               </div>
             </div>
           </div>
