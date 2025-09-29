@@ -21,7 +21,8 @@ const Bitacora = () => {
     const fetchBitacora = async () => {
       try {
         const response = await api.get("/bitacora/");
-        setBitacoras(response.data);
+        // Si la API está paginada, los registros están en "results"
+        setBitacoras(response.data.results ?? response.data);
       } catch (error) {
         console.error("Error al cargar la bitácora:", error);
       } finally {
@@ -93,7 +94,7 @@ const Bitacora = () => {
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-700">{item.ip}</td>
                   <td className="px-6 py-4 text-sm text-gray-700">
-                    {new Date(item.fecha_entrada).toLocaleDateString()}
+                    {new Date(item.fecha_entrada + "T00:00:00").toLocaleDateString("es-BO")}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-700">
                     {item.hora_entrada}

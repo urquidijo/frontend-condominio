@@ -53,6 +53,7 @@ export default function MisReservas() {
     try {
       const userIdStr = localStorage.getItem("userId");
       const userId = userIdStr ? parseInt(userIdStr, 10) : undefined;
+      console.log("User ID:", userId);
       if (userId) {
         await registrarBitacora(userId, "Obtener Reservaciones", "exitoso");
       }
