@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useStripe } from "@stripe/react-stripe-js";
 import api from "../api/axiosConfig";
+import { registrarBitacora } from "../api/bitacora";
 
 // ---- Tipos que devuelve tu API ----
 type Reserva = {
@@ -50,6 +51,11 @@ export default function MisReservas() {
   const fetchData = async () => {
     setLoading(true);
     try {
+      const userIdStr = localStorage.getItem("userId");
+      const userId = userIdStr ? parseInt(userIdStr, 10) : undefined;
+      if (userId) {
+        await registrarBitacora(userId, "Obtener Reservaciones", "exitoso");
+      }
       const { data } = await api.get<Reserva[]>("/reservations/");
       setItems(data);
     } catch (e) {
@@ -159,7 +165,6 @@ export default function MisReservas() {
                   </div>
                 </div>
 
-                
                 {/* Estado del pago */}
                 <div className="flex items-center gap-2">
                   {isPaid ? (

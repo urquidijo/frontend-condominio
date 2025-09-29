@@ -167,8 +167,8 @@ export default function Sidebar({
   // Logout con bitácora y visitante
   const handleLogout = async () => {
     const userIdStr = localStorage.getItem("userId");
-    const roleName = (localStorage.getItem("role") || "").toLowerCase();
     const userId = userIdStr ? parseInt(userIdStr, 10) : undefined;
+    const roleName = (localStorage.getItem("role") || "").toLowerCase();
 
     try {
       if (userId && (roleName === "visitante" || roleName === "visitor")) {

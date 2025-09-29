@@ -3,6 +3,7 @@ import React from "react";
 import { fetchAlerts, type AlertDTO } from "../api/ai";
 import AlertCard from "../components/AlertCard";
 import VideoUploadCard from "../components/VideoUploadCard"; // ⬅️ nuevo
+import { registrarBitacora } from "../api/bitacora";
 
 export default function AlertsPage() {
   const [items, setItems] = React.useState<AlertDTO[]>([]);
@@ -11,10 +12,15 @@ export default function AlertsPage() {
 
   async function load() {
     try {
+      const userIdStr = localStorage.getItem("userId");
+      const userId = userIdStr ? parseInt(userIdStr, 10) : undefined;
       setLoading(true);
       setError(null);
       const data = await fetchAlerts();
       setItems(data);
+      if (userId) {
+        await registrarBitacora(userId, "Obtener Alertas", "exitoso");
+      }
     } catch (e: any) {
       setError(e?.message ?? "Error cargando alertas");
     } finally {
@@ -41,10 +47,7 @@ export default function AlertsPage() {
       </div>
 
       {/* ▶️ Subir video y procesar con IA; al terminar, recarga la lista */}
-      <VideoUploadCard
-        defaultCameraId="cam1"
-        onProcessed={() => load()}
-      />
+      <VideoUploadCard defaultCameraId="cam1" onProcessed={() => load()} />
 
       {loading && <div className="text-gray-500">Cargando…</div>}
 

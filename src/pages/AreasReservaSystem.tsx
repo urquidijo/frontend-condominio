@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { crearReserva, listarAreas } from "../api/commons";
 import { crearCheckoutSession } from "../api/payments";
+import { registrarBitacora } from "../api/bitacora";
 
 type AreaVM = {
   id: number;
@@ -110,6 +111,11 @@ const AreasReservaSystem: React.FC = () => {
         hora_inicio: `${horaInicio}:00`, // asegurar HH:mm:ss
         hora_fin: `${horaFin || addOneHour(horaInicio)}:00`,
       });
+            const userIdStr = localStorage.getItem("userId");
+            const userId = userIdStr ? parseInt(userIdStr, 10) : undefined;
+            if (userId) {
+              await registrarBitacora(userId, "ObtenerReservaciones", "exitoso");
+            }
 
       const session = await crearCheckoutSession({
         reservation_id: reserva.id,

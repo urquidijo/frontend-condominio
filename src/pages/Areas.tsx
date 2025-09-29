@@ -8,6 +8,7 @@ import {
   deleteArea,
   type CommonArea,
 } from "../api/commons";
+import { registrarBitacora } from "../api/bitacora";
 
 // ===== Modal accesibilidad
 Modal.setAppElement("#root");
@@ -109,6 +110,11 @@ export default function Areas() {
       setErrorTop(null);
       setLoading(true);
       const data = await getAreas();
+      const userIdStr = localStorage.getItem("userId");
+            const userId = userIdStr ? parseInt(userIdStr, 10) : undefined;
+            if (userId) {
+              await registrarBitacora(userId, "Obtener Areas", "exitoso");
+            }
       setAreas(data);
     } catch (e: any) {
       setErrorTop(e?.response?.data?.detail || "Error al cargar áreas.");
