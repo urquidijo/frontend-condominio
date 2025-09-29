@@ -6,7 +6,6 @@ import {
   MapPin,
   Download,
   Search,
-  Plus,
   ChevronDown,
   DollarSign,
 } from "lucide-react";
